@@ -2284,8 +2284,8 @@ class RandomForestClassifier(ForestClassifier):
         self.ccp_alpha = ccp_alpha
 
         if spoof_as_sklearn:
-            import sklearn
-            self.__class__ = sklearn.ensemble.RandomForestClassifier
+            from sklearn.ensemble import RandomForestClassifier as sklrfc
+            self.__class__ = sklrfc
 
 
 class RandomForestRegressor(ForestRegressor):
@@ -2579,8 +2579,8 @@ class RandomForestRegressor(ForestRegressor):
         self.ccp_alpha = ccp_alpha
 
         if spoof_as_sklearn:
-            import sklearn
-            self.__class__ = sklearn.ensemble.RandomForestClassifier
+            from sklearn.ensemble import RandomForestRegressor as sklrfr
+            self.__class__ = sklrfr
 
 
 class ExtraTreesClassifier(ForestClassifier):
