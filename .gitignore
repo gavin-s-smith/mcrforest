@@ -11,7 +11,7 @@ __pycache__
 
 mcrforest/*.c
 mcrforest/*.so
-/mcrforest/__pycache__/*
+/mcrforest/__pycache__/
 /build/
 
 .vscode/settings.json
