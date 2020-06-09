@@ -2253,9 +2253,9 @@ class RandomForestClassifier(ForestClassifier):
                  class_weight=None,
                  ccp_alpha=0.0,
                  max_samples=None,
-                 mcr_tree_equivilient_tol = 0.00001, performance_equivilence = True):
+                 mcr_tree_equivilient_tol = 0.00001, performance_equivilence = True, spoof_as_sklearn = False):
         super().__init__(
-            base_estimator=DecisionTreeClassifier(),
+            base_estimator=DecisionTreeClassifier(spoof_as_sklearn=spoof_as_sklearn),
             n_estimators=n_estimators,
             estimator_params=("criterion", "max_depth", "min_samples_split",
                               "min_samples_leaf", "min_weight_fraction_leaf",
@@ -2282,6 +2282,10 @@ class RandomForestClassifier(ForestClassifier):
         self.min_impurity_decrease = min_impurity_decrease
         self.min_impurity_split = min_impurity_split
         self.ccp_alpha = ccp_alpha
+
+        if spoof_as_sklearn:
+            import sklearn
+            self.__class__ = sklearn.ensemble.RandomForestClassifier
 
 
 class RandomForestRegressor(ForestRegressor):
@@ -2545,9 +2549,9 @@ class RandomForestRegressor(ForestRegressor):
                  warm_start=False,
                  ccp_alpha=0.0,
                  max_samples=None,
-                 mcr_tree_equivilient_tol = 0.00001, performance_equivilence = True):
+                 mcr_tree_equivilient_tol = 0.00001, performance_equivilence = True, spoof_as_sklearn = False):
         super().__init__(
-            base_estimator=DecisionTreeRegressor(),
+            base_estimator=DecisionTreeRegressor(spoof_as_sklearn = spoof_as_sklearn),
             n_estimators=n_estimators,
             estimator_params=("criterion", "max_depth", "min_samples_split",
                               "min_samples_leaf", "min_weight_fraction_leaf",
@@ -2573,6 +2577,10 @@ class RandomForestRegressor(ForestRegressor):
         self.min_impurity_decrease = min_impurity_decrease
         self.min_impurity_split = min_impurity_split
         self.ccp_alpha = ccp_alpha
+
+        if spoof_as_sklearn:
+            import sklearn
+            self.__class__ = sklearn.ensemble.RandomForestClassifier
 
 
 class ExtraTreesClassifier(ForestClassifier):

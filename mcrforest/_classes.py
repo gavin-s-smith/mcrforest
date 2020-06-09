@@ -908,7 +908,8 @@ class DecisionTreeClassifier(ClassifierMixin, BaseDecisionTree):
                  min_impurity_decrease=0.,
                  min_impurity_split=None,
                  class_weight=None,
-                 ccp_alpha=0.0):
+                 ccp_alpha=0.0,
+                 spoof_as_sklearn = False):
         super().__init__(
             criterion=criterion,
             splitter=splitter,
@@ -923,6 +924,10 @@ class DecisionTreeClassifier(ClassifierMixin, BaseDecisionTree):
             min_impurity_decrease=min_impurity_decrease,
             min_impurity_split=min_impurity_split,
             ccp_alpha=ccp_alpha)
+        
+        if spoof_as_sklearn:
+            import sklearn
+            self.__class__ = sklearn.tree.DecisionTreeClassifier
             
 
     def gavin(self):
@@ -1312,7 +1317,7 @@ class DecisionTreeRegressor(RegressorMixin, BaseDecisionTree):
                  max_leaf_nodes=None,
                  min_impurity_decrease=0.,
                  min_impurity_split=None,
-                 ccp_alpha=0.0):
+                 ccp_alpha=0.0, spoof_as_sklearn = False):
         super().__init__(
             criterion=criterion,
             splitter=splitter,
@@ -1326,6 +1331,10 @@ class DecisionTreeRegressor(RegressorMixin, BaseDecisionTree):
             min_impurity_decrease=min_impurity_decrease,
             min_impurity_split=min_impurity_split,
             ccp_alpha=ccp_alpha)
+        
+        if spoof_as_sklearn:
+            import sklearn
+            self.__class__ = sklearn.tree.DecisionTreeRegressor
 
     def fit(self, X, y, sample_weight=None, check_input=True,
             X_idx_sorted=None):
@@ -1861,4 +1870,4 @@ class ExtraTreeRegressor(DecisionTreeRegressor):
             ccp_alpha=ccp_alpha)
 
 
-print('Heelo')
+#print('Hello')

@@ -63,9 +63,9 @@ setup(
     name = "mcrforest",
     version='0.9.0',
     description='Random Forest implementation with VIM',
-    url='http://github.com/gavin-s-smith/mcrforest',
-    author='Gavin Smith',
-    author_email='gavin.smith@nottingham.ac.uk',
+    url='http://github.com/anon/mcrforest',
+    author='anon',
+    author_email='anon@anon.com',
     license='MIT',
     packages = ["mcrforest"],
     zip_safe=False,
@@ -73,15 +73,3 @@ setup(
     include_package_data=True,
     package_data=package_data
 )
-
-
-#if __name__ == "__main__":
-#    from setuptools import setup, find_packages
-#    from setuptools.extension import Extension
-#    from Cython.Build import cythonize
-#    from numpy.distutils.core import setup
-#    setup(
-#    name = "mcrforest",
-#    packages = ['mcrforest'],
-#    ext_modules = cythonize(extensions)
-#	)
