@@ -1210,14 +1210,14 @@ class BaseForest(MultiOutputMixin, BaseEnsemble, metaclass=ABCMeta):
                     if is_classifier(self):
                         if (1-np.mean(np.abs(ie == forest_preds[j]))) <= self.mcr_tree_equivilient_tol: 
                             eq_set.append(j)
-                            if i != j:
-                                print('FOUND PREDICTION EQUIVLIACNE (Classification)')
+                            #if i != j:
+                            #    print('FOUND PREDICTION EQUIVLIACNE (Classification)')
                     else:
                         if mean_squared_error(ie, forest_preds[j]) <= self.mcr_tree_equivilient_tol:
                         #if (ie == forest_preds[j]).all(): 
                             eq_set.append(j)
-                            if i != j:
-                                print('FOUND PREDICTION EQUIVLIACNE (Regression)')
+                            #if i != j:
+                            #    print('FOUND PREDICTION EQUIVLIACNE (Regression)')
                 self.forest_equivilents.append( eq_set )
         # END GAVIN
 
