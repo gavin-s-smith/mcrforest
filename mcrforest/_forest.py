@@ -267,7 +267,10 @@ class BaseForest(MultiOutputMixin, BaseEnsemble, metaclass=ABCMeta):
 
 # GAVIN TODO: Integrate better
     def mcr(self, X_in, y_in, indices_to_permute, e_switch = False, 
-                                    num_times = 100, debug = False, mcr_type = 1, restrict_trees_to = None, mcr_as_ratio = False, seed = 13111985 ):
+                                    num_times = 100, debug = False, 
+                                    mcr_type = 1, restrict_trees_to = None, mcr_as_ratio = False, seed = 13111985, 
+                                    enable_Tplus_transform = True
+                                    ):
         
         is_classification = is_classifier(self)
 
@@ -383,24 +386,27 @@ class BaseForest(MultiOutputMixin, BaseEnsemble, metaclass=ABCMeta):
 
             new_trees_indexes = []
             for i_ntrees in range(n_trees):
-                if mcr_type > 0:
-                    # MCR+
-                    # per_tree_diff_in_loss_ref_tree_vs_fplus_tree
-                    # contains the damage to the performance measure done by using f+ in excess of that that already existed in f 
-                    
-                    # for this tree get the set of trees that have accuacy equiviliency
-                    indexs_of_eq_forests = self.forest_equivilents[i_ntrees]
-                    # look over these and find the tree (index) that has the most loss of accuaracy
-                    worst_tree = indexs_of_eq_forests[ np.argmax( per_tree_diff_in_loss_ref_tree_vs_fplus_tree[ indexs_of_eq_forests ] ) ]
+                if enable_Tplus_transform:
+                    if mcr_type > 0:
+                        # MCR+
+                        # per_tree_diff_in_loss_ref_tree_vs_fplus_tree
+                        # contains the damage to the performance measure done by using f+ in excess of that that already existed in f 
+                        
+                        # for this tree get the set of trees that have accuacy equiviliency
+                        indexs_of_eq_forests = self.forest_equivilents[i_ntrees]
+                        # look over these and find the tree (index) that has the most loss of accuaracy
+                        worst_tree = indexs_of_eq_forests[ np.argmax( per_tree_diff_in_loss_ref_tree_vs_fplus_tree[ indexs_of_eq_forests ] ) ]
 
-                    # Use the found tree in the new forest
-                    new_trees_indexes.append(worst_tree)
-                      
+                        # Use the found tree in the new forest
+                        new_trees_indexes.append(worst_tree)
+                        
+                    else:
+                        indexs_of_eq_forests = self.forest_equivilents[i_ntrees]
+                        best_tree = indexs_of_eq_forests[ np.argmin( per_tree_diff_in_loss_ref_tree_vs_fplus_tree[ indexs_of_eq_forests ] ) ]
+
+                        new_trees_indexes.append(best_tree)
                 else:
-                    indexs_of_eq_forests = self.forest_equivilents[i_ntrees]
-                    best_tree = indexs_of_eq_forests[ np.argmin( per_tree_diff_in_loss_ref_tree_vs_fplus_tree[ indexs_of_eq_forests ] ) ]
-
-                    new_trees_indexes.append(best_tree)
+                    new_trees_indexes.append(i_ntrees)
 
                    
             if is_classification:
