@@ -244,6 +244,14 @@ class BaseForest(MultiOutputMixin, BaseEnsemble, metaclass=ABCMeta):
         self.mcr_tree_equivilient_tol = mcr_tree_equivilient_tol
         self.performance_equivilence = performance_equivilence
 
+    def print_trees(self, col_names):
+
+        for i,e in enumerate(self.estimators_):
+            print('\nTree Number from forest: {}\n'.format(i))
+            if is_classifier(e):
+                print('Probabily table to class mapping: {}'.format( e.classes_) )
+            e.tree_.print_tree(col_names)
+
 
     def prob2predictions(self, proba):
 
@@ -1170,11 +1178,12 @@ class BaseForest(MultiOutputMixin, BaseEnsemble, metaclass=ABCMeta):
                 # if tidx==3 and i == 2:
                 #     print('p')
                 b = mean_squared_error(y, t.predict_vim(X,np.asarray([i]), 1))
+                #b = mean_squared_error(y[5], t.predict_vim(X[5,:].reshape(1,-1),np.asarray([i]), 1))
                 c = mean_squared_error(y, t.predict_vim(X,np.asarray([i]), -1))
                 if a != b:
-                    raise Exception('MAJOR SURROGATE ERROR WITH MCR+')
+                    raise Exception('MAJOR SURROGATE ERROR WITH MCR+. Or you forgot to set bootstrap = False.')
                 if a != c:
-                    raise Exception('MAJOR SURROGATE ERROR WITH MCR-')
+                    raise Exception('MAJOR SURROGATE ERROR WITH MCR-. Or you forgot to set bootstrap = False.')
 
         # GAVIN
 

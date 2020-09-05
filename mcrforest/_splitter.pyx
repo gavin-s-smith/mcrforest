@@ -326,6 +326,7 @@ cdef class BestSplitter(BaseDenseSplitter):
         cdef int found_phase1 = 0
         cdef int found_phase2 = 0
         cdef int found = 0
+        cdef int best_split_identified = 0
         cdef DTYPE_t surrogate_threshold
         cdef SIZE_t splitset_at = 0
         cdef SIZE_t debug = 0
@@ -369,13 +370,14 @@ cdef class BestSplitter(BaseDenseSplitter):
 # we continue after [ n_visited_features < max_features ] is FALSE. 
 # However, we will not record a best split after this, but only compute surrogate info. 
 ########################################################
-
+        best_split_identified = 0
         while (f_i > n_total_constants and  # Stop early if remaining features
                                             # are constant
                 (n_visited_features < n_features or
                  # At least one drawn features must be non constant
                  n_visited_features <= n_found_constants + n_drawn_constants)):
 
+            # This is FALSE if we don't want to use this sample for computing the best split
             iter_counts_for_best = (n_visited_features < max_features or n_visited_features <= n_found_constants + n_drawn_constants)
 
             n_visited_features += 1
@@ -450,11 +452,11 @@ cdef class BestSplitter(BaseDenseSplitter):
                             
 
                             # Reject if min_samples_leaf is not guaranteed
-                            if (((current.pos - start) < min_samples_leaf) or
-                                    ((end - current.pos) < min_samples_leaf)):
-
+                            
+                            if (((current.pos - start) < min_samples_leaf) or  ((end - current.pos) < min_samples_leaf)):
                                 continue
-
+                            
+                          
                             self.criterion.update(current.pos)
 
                             # Reject if min_weight_leaf is not satisfied
@@ -467,8 +469,8 @@ cdef class BestSplitter(BaseDenseSplitter):
                             # A potential split is only valid if it can make a valid split - the MDA is irrelevent
                             potential_surrogates[splitset_at] = current.feature # yes this will be run unnecessarily but not sure of a better place for it
                             feature_split_found = 1
-                            # if n_visited_features > max_features: 
-                            #     continue
+                            #if n_visited_features > max_features: 
+                            #    continue # This isn't needed as we use iter_counts_for_best as a guard for recording a split or not as a viable "best" candidate
                             # GAV END
 
                             current_proxy_improvement = self.criterion.proxy_impurity_improvement()
@@ -483,8 +485,10 @@ cdef class BestSplitter(BaseDenseSplitter):
                                     (current.threshold == -INFINITY)):
                                     current.threshold = Xf[p - 1]
 
+                                # Only mark this as "best" if we haven't considered to many - this is a flag based in part of max_features [Gavin]
                                 if iter_counts_for_best > 0:
                                     best = current  # copy
+                                    best_split_identified = 1
                                 
             
                 if feature_split_found > 0:
@@ -493,238 +497,255 @@ cdef class BestSplitter(BaseDenseSplitter):
 ########################################################
 ## GAVIN START ########################################
 ########################################################
+        if best_split_identified > 0:
+            best.num_surrogates = 0
+            debug = 0
 
-        best.num_surrogates = 0
-        debug = 0
 
-        # GAVIN - WORK OUT AND STORE SURROGATES
-        if debug == 1:
-            with gil:
-                print('Best found feature: {}'.format(best.feature))
 
-        # Map instances to id's for best 
-        for g in range(start, end):
-            Xf[g] = self.X[samples[g], best.feature]
-            Xf_best_order[g] = g
+            # GAVIN - WORK OUT AND STORE SURROGATES
+            if debug == 1:
+                with gil:
+                    print('Best found feature: {}'.format(best.feature))
+                    print('Best split: {} - {} - {}'.format(start, best.pos, end))
 
-        
-        # Sort these instance id's along the best's feature
-        sort(Xf + start, Xf_best_order + start, end-start)
-
-        if debug == 1:
-            with gil:
-                print('Number of potential surrogates: {}'.format(splitset_at-1)) #-1 as splitset_at includes the best as a surrogate of itself
-                tmp = []
-                vtmp = []
-                for g in range(start, end):
-                    tmp.append(Xf_best_order[g])
-                    vtmp.append(Xf[g])
-                print('Instance order for best: {}'.format(tmp))
-                print('        Values for best: {}'.format(vtmp))
-        
-
-        # Sort the best instance set left values. We use this to compare to another sorted instance array in linear time
-        qsort(Xf_best_order + start, best.pos-start,sizeof(SIZE_t),compare_SIZE_t)
-
-        if debug == 1:
-            with gil:
-                tmp = []
-                for g in range(start, end):
-                    tmp.append(Xf_best_order[g])
-                print('Intance order with left child sorted by instance id: {}'.format(tmp))
-
-            # For each possible surrogate
-            with gil:
-                tmp = [ potential_surrogates[x] for x in range(splitset_at)]
-                print('=====================================================================')
-                print('== SURROGATES ({} to consider): {}. Best pos: {} relative pos: {} =='.format(splitset_at,tmp, best.pos, best.pos-start))
-                print('=====================================================================')
-
-        for i in range(splitset_at):
-
-            # Map instances to id's and sort
-            
+            # Map instances to id's for best 
             for g in range(start, end):
-                Xf[g] = self.X[samples[g], potential_surrogates[i]]
-                Xf_surrogate_order[g] = g
+                Xf[g] = self.X[samples[g], best.feature]
+                Xf_best_order[g] = g
 
-            sort(Xf + start, Xf_surrogate_order + start, end-start)
-
-            found_phase1 = 0
-
-            if best.feature == potential_surrogates[i]:
-                continue
+            
+            # Sort these instance id's along the best's feature
+            sort(Xf + start, Xf_best_order + start, end-start)
 
             if debug == 1:
                 with gil:
-                    print('\nChecking possible surrogate for feature: {}'.format(potential_surrogates[i]))
+                    print('Number of potential surrogates: {}'.format(splitset_at-1)) #-1 as splitset_at includes the best as a surrogate of itself
                     tmp = []
                     vtmp = []
                     for g in range(start, end):
-                        tmp.append(Xf_surrogate_order[g])
+                        tmp.append(Xf_best_order[g])
                         vtmp.append(Xf[g])
-                    print('Intance order for surrogate: {}'.format(tmp))
-                    print('       Values for surrogate: {}'.format(vtmp))
-
-            ## STAGE I
-            # Check if the left instances as could be split by the surrogate match the left instances in the best
-
-            # sort the potential surrogate instance set left values
-            qsort(Xf_surrogate_order +  start, best.pos-start, sizeof(SIZE_t), compare_SIZE_t)
-
-            if debug == 1:
-                with gil:
-                    tmp = []
-                    for g in range(start, end):
-                        tmp.append(Xf_surrogate_order[g])
-                    print('Intance order for surrogate after sort: {}'.format(tmp))
-              
-
-            # check the values
-            for j in range(start, best.pos): # SHOULD THIS BE +1?
-                if Xf_surrogate_order[j] == Xf_best_order[j]:
-                    found_phase1 += 1
-                else:
-                    break
-
-            if debug == 1:
-                with gil:
-                    tmp_s = []
-                    tmp_b = []
-                    for j in range(start, best.pos): # SHOULD THIS BE +1?
-                        tmp_s.append(Xf_surrogate_order[j])
-                        tmp_b.append(Xf_best_order[j])
-                        
-                with gil:
-                    if found_phase1 == (best.pos-start) and abs(Xf[best.pos-1] - Xf[best.pos]) > FEATURE_THRESHOLD:
-                        print('[ACCEPT] STAGE I: Sur: {}, Best: {}'.format(tmp_s,tmp_b))
-                    else:
-                        print('[REJECT] STAGE I: Sur: {}, Best: {}'.format(tmp_s,tmp_b))
-
-            # if the split is ok AND the variable changes across the split (i.e. we can determine the difference with this var)
-            if found_phase1 == (best.pos-start) and fabs(Xf[best.pos-1] - Xf[best.pos]) > FEATURE_THRESHOLD:
-                # now find the threshold
-                surrogate_threshold = (Xf[best.pos-1] + Xf[best.pos])/2.0
-                found_phase1 = 1 # found
-            else:
-                found_phase1 = 9999
+                    print('Instance order for best: {}'.format(tmp))
+                    #print('Instance value for best: {}'.format(np.asarray(self.y)[np.asarray(tmp)]))
+                    print('        Values for best: {}'.format(vtmp))
             
 
-            ## STAGE II
-            # Check if the right instances as could be split by the surrogate match the left instances in the best
-
-            # Re-set the orderings
-            for g in range(start, end):
-                Xf[g] = self.X[samples[g], potential_surrogates[i]]
-                Xf_surrogate_order[g] = g
-
-            sort(Xf + start, Xf_surrogate_order + start, end-start)
-
+            # Sort the best instance set left values. We use this to compare to another sorted instance array in linear time
+            qsort(Xf_best_order + start, best.pos-start,sizeof(SIZE_t),compare_SIZE_t)
 
             if debug == 1:
                 with gil:
-                    print('\nChecking possible surrogate for feature: {}'.format(potential_surrogates[i]))
                     tmp = []
-                    vtmp = []
                     for g in range(start, end):
-                        tmp.append(Xf_surrogate_order[g])
-                        vtmp.append(Xf[g])
-                    print('Intance order for surrogate: {}'.format(tmp))
-                    print('       Values for surrogate: {}'.format(vtmp))
+                        tmp.append(Xf_best_order[g])
+                    print('Intance order with left child sorted by instance id: {}'.format(tmp))
 
-
-            found_phase2 = 0
-
-            # sort the right most values of the potential surrogate (to the same number as in best left, in case this is a match)
-            qsort(Xf_surrogate_order + (end-(best.pos-start)), best.pos-start,  sizeof(SIZE_t), compare_SIZE_t)
-
-            offset = 0
-            for j in range(start, best.pos): 
-                if Xf_surrogate_order[ (end-(best.pos-start)) + offset] == Xf_best_order[j]:
-                    found_phase2 += 1
-                else:
-                    break
-                offset += 1
-
-            # check the values
-            if debug == 1:
+                # For each possible surrogate
                 with gil:
-                    tmp_s = []           
-                    tmp_b = []
-                    offsetpy = 0
-                    for j in range(start, best.pos): 
-                        tmp_s.append(Xf_surrogate_order[(end-(best.pos-start)) + offsetpy])
-                        tmp_b.append(Xf_best_order[j])
-                        offsetpy += 1
-                        
-                    with gil:
-                        if found_phase2 == (best.pos-start) and abs(Xf[(end-(best.pos-start))-1] - Xf[(end-(best.pos-start))]) > FEATURE_THRESHOLD:
-                            print('[ACCEPT] STAGE II: Sur: {}, Best: {}'.format(tmp_s,tmp_b))
-                        else:
-                            print('[REJECT] STAGE II: Sur: {}, Best: {}'.format(tmp_s,tmp_b))
+                    tmp = [ potential_surrogates[x] for x in range(splitset_at)]
+                    print('=====================================================================')
+                    print('== SURROGATES ({} to consider): {}. Best pos: {} relative pos: {} =='.format(splitset_at,tmp, best.pos, best.pos-start))
+                    print('=====================================================================')
 
-            # if the split is ok AND the variable changes across the split (i.e. we can determine the difference with this var)
-            if found_phase2 == (best.pos-start) and fabs(Xf[(end-(best.pos-start))-1] - Xf[(end-(best.pos-start))]) > FEATURE_THRESHOLD:
-                # Now find the threshold. 
-                surrogate_threshold = (Xf[(end-(best.pos-start))-1] + Xf[(end-(best.pos-start))])/2.0
-                found_phase2 = -1 # found but need to flip the inequality for the surrogate
-            else:
-                found_phase2 = 9999
-
+            for i in range(splitset_at):
+                # For each potential surrogate 
+                # --> potential surrogates at this stage are ones that have passed checks to ensure they're not constants or 
+                #     violate min_samples_leaf and min_weight_leaf constraints
+                # Map instances to id's and sort
                 
-            found = 9999
-            
-            if (found_phase1 < 99) and (found_phase2 < 99):
-                with gil:
-                    # Compute the instances in the LEFT leaf after splitting by BEST. These have been re-ordered by instance ID.
-                    tmp_best_left = []
-                    tmp_suro_left = []
-                    tmp_suro_right = []
-                    offsetpy = 0
-                    for gc in range(start, best.pos):
-                        tmp_best_left.append(Xf_best_order[gc])
-                        tmp_suro_left.append(Xf_surrogate_order[gc])
-                        tmp_suro_right.append(Xf_surrogate_order[(end-(best.pos-start)) + offsetpy])
-                        offsetpy += 1
-                    
-                    print('MAJOR ERROR.')
-                    print('Best feature ID: {}, Surrogate feature ID: {}'.format(best.feature,potential_surrogates[i]))
-                    print('Start: {} Best split: {} End: {}'.format(start,best.pos,end))
-                    print('Instances (by ID) split by BEST in the LEFT  node: {}'.format(tmp_best_left))
-                    print('Instances (by ID) split by SURO in the LEFT  node: {}'.format(tmp_suro_left))
-                    print('Instances (by ID) split by SURO in the RIGHT node: {}'.format(tmp_suro_right))
-            else:
-                if found_phase1 < 99:
-                    found = found_phase1
-                else:
-                    found = found_phase2
+                for g in range(start, end):
+                    Xf[g] = self.X[samples[g], potential_surrogates[i]]
+                    Xf_surrogate_order[g] = g
 
-            if found < 99:
+                # Sort these instance (sample) id's along the surrogate feature
+                sort(Xf + start, Xf_surrogate_order + start, end-start)
+
+                found_phase1 = 0
+
+                if best.feature == potential_surrogates[i]:
+                    continue
+
                 if debug == 1:
                     with gil:
-                        print('Found Surrogate. Best var: {}, thresh: {}. Surrogate: {}, thresh: {}. Flip? {}'.format(best.feature, best.threshold, potential_surrogates[i], surrogate_threshold,found))
-                
-                # Save the surrogate into the best struct. TODO: Make this more memory efficent
-                if best.num_surrogates >= 100:
+                        print('\nChecking possible surrogate for feature: {}'.format(potential_surrogates[i]))
+                        tmp = []
+                        vtmp = []
+                        for g in range(start, end):
+                            tmp.append(Xf_surrogate_order[g])
+                            vtmp.append(Xf[g])
+                        print('Intance order for surrogate: {}'.format(tmp))
+                        print('       Values for surrogate: {}'.format(vtmp))
+
+                ## STAGE I
+                # Check if the left instances as could be split by the surrogate match the left instances in the best
+
+                # sort the potential surrogate instance set left values
+                qsort(Xf_surrogate_order +  start, best.pos-start, sizeof(SIZE_t), compare_SIZE_t)
+
+                if debug == 1:
                     with gil:
-                        print('!!!!!!!!!!!!!!!!!! ERROR, to many surrogates!!!!!! THIS IS A HARDCODED LIMIT !!!!!!!!!!.')
-                        print('!!!!!!!!!!!!!!!!!! ERROR, to many surrogates!!!!!! THIS IS A HARDCODED LIMIT !!!!!!!!!!.')
-                        print('!!!!!!!!!!!!!!!!!! ERROR, to many surrogates!!!!!! THIS IS A HARDCODED LIMIT !!!!!!!!!!.')
-                        print('!!!!!!!!!!!!!!!!!! ERROR, to many surrogates!!!!!! THIS IS A HARDCODED LIMIT !!!!!!!!!!.')
-                        print('!!!!!!!!!!!!!!!!!! ERROR, to many surrogates!!!!!! THIS IS A HARDCODED LIMIT !!!!!!!!!!.')
-
-                best.surrogate_flip[best.num_surrogates] = found
-                best.surrogate_feature[best.num_surrogates] = potential_surrogates[i]
-                best.surrogate_threshold[best.num_surrogates] = surrogate_threshold
-                best.num_surrogates += 1
+                        tmp = []
+                        for g in range(start, end):
+                            tmp.append(Xf_surrogate_order[g])
+                        print('Intance order for surrogate after sort: {}'.format(tmp))
                 
 
-        # SANITY CHECK
-        if debug == 1:
-            with gil:
-                print('))))))))))))))))))))))))))))))))))))))))===> {}'.format(best.feature))
+                # check the values
+                for j in range(start, best.pos): # SHOULD THIS BE +1?
+                    if Xf_surrogate_order[j] == Xf_best_order[j]:
+                        found_phase1 += 1
+                    else:
+                        break
 
-## GAVIN END
+                if debug == 1:
+                    with gil:
+                        tmp_s = []
+                        tmp_b = []
+                        for j in range(start, best.pos): # SHOULD THIS BE +1?
+                            tmp_s.append(Xf_surrogate_order[j])
+                            tmp_b.append(Xf_best_order[j])
+                            
+                    with gil:
+                        if found_phase1 == (best.pos-start) and abs(Xf[best.pos-1] - Xf[best.pos]) > FEATURE_THRESHOLD:
+                            print('[ACCEPT] STAGE I: Sur: {}, Best: {}'.format(tmp_s,tmp_b))
+                        else:
+                            print('[REJECT] STAGE I: Sur: {}, Best: {}'.format(tmp_s,tmp_b))
+
+                # if the split is ok AND the variable changes across the split (i.e. we can determine the difference with this var)
+                if found_phase1 == (best.pos-start) and fabs(Xf[best.pos-1] - Xf[best.pos]) > FEATURE_THRESHOLD:
+                    # now find the threshold
+                    surrogate_threshold = (Xf[best.pos-1] + Xf[best.pos])/2.0
+                    found_phase1 = 1 # found
+                else:
+                    found_phase1 = 9999
+                
+
+                ## STAGE II
+                # Check if the right instances as could be split by the surrogate match the left instances in the best
+                # Clearly, we can't have both stages match (if best.left == surro.left, then best.left != surro.right) since we have a partition
+
+                # Re-set the orderings
+                for g in range(start, end):
+                    Xf[g] = self.X[samples[g], potential_surrogates[i]]
+                    Xf_surrogate_order[g] = g
+
+                sort(Xf + start, Xf_surrogate_order + start, end-start)
+
+
+                if debug == 1:
+                    with gil:
+                        print('\nChecking possible surrogate for feature: {}'.format(potential_surrogates[i]))
+                        tmp = []
+                        vtmp = []
+                        for g in range(start, end):
+                            tmp.append(Xf_surrogate_order[g])
+                            vtmp.append(Xf[g])
+                        print('Intance order for surrogate: {}'.format(tmp))
+                        print('       Values for surrogate: {}'.format(vtmp))
+
+
+                found_phase2 = 0
+
+                # sort the right most values of the potential surrogate (to the same number as in best left, in case this is a match)
+                qsort(Xf_surrogate_order + (end-(best.pos-start)), best.pos-start,  sizeof(SIZE_t), compare_SIZE_t)
+
+                offset = 0
+                for j in range(start, best.pos): 
+                    if Xf_surrogate_order[ (end-(best.pos-start)) + offset] == Xf_best_order[j]:
+                        found_phase2 += 1
+                    else:
+                        break
+                    offset += 1
+
+                # check the values
+                if debug == 1:
+                    with gil:
+                        tmp_s = []           
+                        tmp_b = []
+                        offsetpy = 0
+                        for j in range(start, best.pos): 
+                            tmp_s.append(Xf_surrogate_order[(end-(best.pos-start)) + offsetpy])
+                            tmp_b.append(Xf_best_order[j])
+                            offsetpy += 1
+                            
+                        with gil:
+                            if found_phase2 == (best.pos-start) and abs(Xf[(end-(best.pos-start))-1] - Xf[(end-(best.pos-start))]) > FEATURE_THRESHOLD:
+                                print('[ACCEPT] STAGE II: Sur: {}, Best: {}'.format(tmp_s,tmp_b))
+                            else:
+                                print('[REJECT] STAGE II: Sur: {}, Best: {}'.format(tmp_s,tmp_b))
+
+                # if the split is ok AND the variable changes across the split (i.e. we can determine the difference with this var)
+                if found_phase2 == (best.pos-start) and fabs(Xf[(end-(best.pos-start))-1] - Xf[(end-(best.pos-start))]) > FEATURE_THRESHOLD:
+                    # Now find the threshold. 
+                    if debug == 1:
+                        with gil:
+                            print('found_phase2 == (best.pos-start) {} == {}'.format(found_phase2 , (best.pos-start)))
+                            print('fabs(Xf[(end-(best.pos-start))-1] - Xf[(end-(best.pos-start))]) {} == {}'.format(Xf[(end-(best.pos-start))-1], Xf[(end-(best.pos-start))]))
+                            print('FEATURE_THRESHOLD {}'.format(FEATURE_THRESHOLD))
+                    surrogate_threshold = (Xf[(end-(best.pos-start))-1] + Xf[(end-(best.pos-start))])/2.0
+                    found_phase2 = -1 # found but need to flip the inequality for the surrogate
+                else:
+                    found_phase2 = 9999
+
+                    
+                found = 9999
+                
+                if (found_phase1 < 99) and (found_phase2 < 99):
+                    with gil:
+                        # Compute the instances in the LEFT leaf after splitting by BEST. These have been re-ordered by instance ID.
+                        tmp_best_left = []
+                        tmp_suro_left = []
+                        tmp_suro_right = []
+                        offsetpy = 0
+                        for gc in range(start, best.pos):
+                            tmp_best_left.append(Xf_best_order[gc])
+                            tmp_suro_left.append(Xf_surrogate_order[gc])
+                            tmp_suro_right.append(Xf_surrogate_order[(end-(best.pos-start)) + offsetpy])
+                            offsetpy += 1
+                        
+                        print('MAJOR ERROR.')
+                        print('found_phase1: {}, found_phase2: {}'.format(found_phase1,found_phase2))
+                        print('best_split_identified = {}'.format(best_split_identified))
+                        print('best.pos {} < end {}'.format(best.pos , end))
+                        print('Best feature ID: {}, Surrogate feature ID: {}'.format(best.feature,potential_surrogates[i]))
+                        print('Start: {} Best split: {} End: {}'.format(start,best.pos,end))
+                        print('Instances (by ID) split by BEST in the LEFT  node: {}'.format(tmp_best_left))
+                        print('Instances (by ID) split by SURO in the LEFT  node: {}'.format(tmp_suro_left))
+                        print('Instances (by ID) split by SURO in the RIGHT node: {}'.format(tmp_suro_right))
+                        exit(-1)
+                else:
+                    if found_phase1 < 99:
+                        found = found_phase1
+                    else:
+                        found = found_phase2
+
+                if found < 99:
+                    if debug == 1:
+                        with gil:
+                            print('Found Surrogate. Best var: {}, thresh: {}. Surrogate: {}, thresh: {}. Flip? {}'.format(best.feature, best.threshold, potential_surrogates[i], surrogate_threshold,found))
+                    
+                    # Save the surrogate into the best struct. TODO: Make this more memory efficent
+                    if best.num_surrogates >= 100:
+                        with gil:
+                            print('!!!!!!!!!!!!!!!!!! ERROR, to many surrogates!!!!!! THIS IS A HARDCODED LIMIT !!!!!!!!!!.')
+                            print('!!!!!!!!!!!!!!!!!! ERROR, to many surrogates!!!!!! THIS IS A HARDCODED LIMIT !!!!!!!!!!.')
+                            print('!!!!!!!!!!!!!!!!!! ERROR, to many surrogates!!!!!! THIS IS A HARDCODED LIMIT !!!!!!!!!!.')
+                            print('!!!!!!!!!!!!!!!!!! ERROR, to many surrogates!!!!!! THIS IS A HARDCODED LIMIT !!!!!!!!!!.')
+                            print('!!!!!!!!!!!!!!!!!! ERROR, to many surrogates!!!!!! THIS IS A HARDCODED LIMIT !!!!!!!!!!.')
+
+                    best.surrogate_flip[best.num_surrogates] = found
+                    best.surrogate_feature[best.num_surrogates] = potential_surrogates[i]
+                    best.surrogate_threshold[best.num_surrogates] = surrogate_threshold
+                    best.num_surrogates += 1
+                    
+
+            # SANITY CHECK
+            if debug == 1:
+                with gil:
+                    print('))))))))))))))))))))))))))))))))))))))))===> {}'.format(best.feature))
+
+    ## GAVIN END
 
 
 

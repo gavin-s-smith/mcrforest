@@ -1017,8 +1017,8 @@ cdef class Tree:
 
                                     break
                         #if found < 99:
-                        #    with gil:
-                        #        print('Did not find an alternative, using var that is not the var of interest. Feature: {}, Thresh: {}, Flip: {}'.format(feature_to_use, threshold_to_use,do_not_flip))
+                            #with gil:
+                            #    print('Did not find an alternative, using var that is not the var of interest. Feature: {}, Thresh: {}, Flip: {}'.format(feature_to_use, threshold_to_use,do_not_flip))
                    
 
                     if do_not_flip == 1:
