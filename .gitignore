@@ -17,3 +17,6 @@ mcrforest/*.so
 .vscode/settings.json
 
 test.py
+test2.py
+*.csv
+Wen.py
