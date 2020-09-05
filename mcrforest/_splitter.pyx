@@ -713,7 +713,7 @@ cdef class BestSplitter(BaseDenseSplitter):
                         print('Instances (by ID) split by BEST in the LEFT  node: {}'.format(tmp_best_left))
                         print('Instances (by ID) split by SURO in the LEFT  node: {}'.format(tmp_suro_left))
                         print('Instances (by ID) split by SURO in the RIGHT node: {}'.format(tmp_suro_right))
-                        exit(-1)
+                        
                 else:
                     if found_phase1 < 99:
                         found = found_phase1
