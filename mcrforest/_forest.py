@@ -1986,7 +1986,7 @@ class RandomForestClassifier(ForestClassifier):
     classifiers on various sub-samples of the dataset and uses averaging to
     improve the predictive accuracy and control over-fitting.
     The sub-sample size is controlled with the `max_samples` parameter if
-    `bootstrap=True` (default), otherwise the whole dataset is used to build
+    `bootstrap=True`, otherwise the whole dataset is used to build
     each tree.
 
     Read more in the :ref:`User Guide <forest>`.
@@ -2091,7 +2091,7 @@ class RandomForestClassifier(ForestClassifier):
            will be removed in 0.25. Use ``min_impurity_decrease`` instead.
 
 
-    bootstrap : bool, default=True
+    bootstrap : bool, default=False
         Whether bootstrap samples are used when building trees. If False, the
         whole dataset is used to build each tree.
 
@@ -2259,7 +2259,7 @@ class RandomForestClassifier(ForestClassifier):
                  max_leaf_nodes=None,
                  min_impurity_decrease=0.,
                  min_impurity_split=None,
-                 bootstrap=True,
+                 bootstrap=False,
                  oob_score=False,
                  n_jobs=None,
                  random_state=None,
@@ -2311,7 +2311,7 @@ class RandomForestRegressor(ForestRegressor):
     decision trees on various sub-samples of the dataset and uses averaging
     to improve the predictive accuracy and control over-fitting.
     The sub-sample size is controlled with the `max_samples` parameter if
-    `bootstrap=True` (default), otherwise the whole dataset is used to build
+    `bootstrap=True`, otherwise the whole dataset is used to build
     each tree.
 
     Read more in the :ref:`User Guide <forest>`.
@@ -2419,7 +2419,7 @@ class RandomForestRegressor(ForestRegressor):
            ``min_impurity_split`` has changed from 1e-7 to 0 in 0.23 and it
            will be removed in 0.25. Use ``min_impurity_decrease`` instead.
 
-    bootstrap : bool, default=True
+    bootstrap : bool, default=False
         Whether bootstrap samples are used when building trees. If False, the
         whole dataset is used to build each tree.
 
@@ -2556,7 +2556,7 @@ class RandomForestRegressor(ForestRegressor):
                  max_leaf_nodes=None,
                  min_impurity_decrease=0.,
                  min_impurity_split=None,
-                 bootstrap=True,
+                 bootstrap=False,
                  oob_score=False,
                  n_jobs=None,
                  random_state=None,
