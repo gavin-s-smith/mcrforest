@@ -18,5 +18,6 @@ mcrforest/*.so
 
 test.py
 test2.py
+test_vanja.py
 *.csv
 Wen.py
