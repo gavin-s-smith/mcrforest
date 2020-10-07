@@ -282,6 +282,9 @@ class BaseForest(MultiOutputMixin, BaseEnsemble, metaclass=ABCMeta):
         
         is_classification = is_classifier(self)
 
+        if mcr_as_ratio:
+            print('WARNING: You have set mcr_as_ratio as true. This part of the implementation is experimental and has not been checked for edge case correctness outside the dataset used in the Neurips paper.')
+
         #if not is_classification:
         #    raise Exception('This method is for classification ONLY')
         
