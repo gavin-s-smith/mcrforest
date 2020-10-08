@@ -2304,6 +2304,8 @@ class RandomForestClassifier(ForestClassifier):
         self.min_impurity_decrease = min_impurity_decrease
         self.min_impurity_split = min_impurity_split
         self.ccp_alpha = ccp_alpha
+        self.spoof_as_sklearn = spoof_as_sklearn
+        
 
         if spoof_as_sklearn:
             from sklearn.ensemble import RandomForestClassifier as sklrfc
@@ -2600,6 +2602,7 @@ class RandomForestRegressor(ForestRegressor):
         self.min_impurity_split = min_impurity_split
         self.ccp_alpha = ccp_alpha
 
+        self.spoof_as_sklearn = spoof_as_sklearn
         if spoof_as_sklearn:
             from sklearn.ensemble import RandomForestRegressor as sklrfr
             self.__class__ = sklrfr

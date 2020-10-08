@@ -925,6 +925,7 @@ class DecisionTreeClassifier(ClassifierMixin, BaseDecisionTree):
             min_impurity_split=min_impurity_split,
             ccp_alpha=ccp_alpha)
         
+        self.spoof_as_sklearn = spoof_as_sklearn
         if spoof_as_sklearn:
             from sklearn.tree import DecisionTreeClassifier as skDTC
             self.__class__ = skDTC
@@ -1331,7 +1332,7 @@ class DecisionTreeRegressor(RegressorMixin, BaseDecisionTree):
             min_impurity_decrease=min_impurity_decrease,
             min_impurity_split=min_impurity_split,
             ccp_alpha=ccp_alpha)
-        
+        self.spoof_as_sklearn = spoof_as_sklearn
         if spoof_as_sklearn:
             from sklearn.tree import DecisionTreeRegressor as sklearnDTR
             self.__class__ = sklearnDTR
