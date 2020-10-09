@@ -25,12 +25,12 @@ Computes and MCR+ or MCR- score of a variable or group of variables.
 
 *Parameters:*
 ```
-X_in (): The input features to use to compute the MCR.
-y_in: The output features to use to compute the MCR.
-indices_to_permute: A numpy array of the index/indices indicating the variable or group of variables to compute MCR for.
-num_times: The number of times to permute the index/indices.
-mcr_type: 1 for MCR+, -1 for MCR-.
-seed: A seed to control the permutation randomness.
+X_in (2D numpy array): The input features to use to compute the MCR.
+y_in (1D numpy array): The output features to use to compute the MCR.
+indices_to_permute (1D numpy array): A numpy array of the index/indices indicating the variable or group of variables to compute MCR for.
+num_times (int): The number of times to permute the index/indices.
+mcr_type (int): 1 for MCR+, -1 for MCR-.
+seed (int): A seed to control the permutation randomness.
 ```
 
 
