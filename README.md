@@ -74,11 +74,12 @@ for gp in groups_of_indicies_to_permute:
     rn = model.mcr(X_train.values,y_train.values, np.asarray(gp) ,  num_times = 20,  mcr_type = -1)
     results.append([','.join([list(X_train.columns)[x] for x in gp]), 'RF-MCR-', rn])
 
+
+# Plot the results
+
 lbl = [ x[0] for x in results if 'MCR+' in x[1] ]
 mcrp = [ x[2] for x in results if 'MCR+' in x[1] ]
 mcrm = [ x[2] for x in results if 'MCR-' in x[1] ]
-
-print('MCR+ sum: {}'.format(sum(mcrp)))
 
 rf_results = pd.DataFrame({'variable':lbl, 'MCR+':mcrp, 'MCR-':mcrm})
 
