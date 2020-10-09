@@ -33,6 +33,20 @@ mcr_type (int): 1 for MCR+, -1 for MCR-.
 seed (int): A seed to control the permutation randomness.
 ```
 
+### Replication of results from the paper
+Synthetic Experiments:
+https://colab.research.google.com/drive/1UuORvqSYW14eiBX3nzz2WWUrjQAXcvFw
+
+COMPAS Experiments:
+https://colab.research.google.com/drive/1-hWJ4DNOnvrLz4fxGd--NJjGHV26TIei
+
+Breast Cancer Experiments
+https://colab.research.google.com/drive/16HGlytaraR6Kn4EmqKk0_Q9Nl7O_hU5F
+
+RF-MCR Analysis:
+https://colab.research.google.com/drive/1AMDW9Ss69QEzgBkMgx8Tw_zIpcZnMcr4
+
+
 
 ### Example Usage
 ```
