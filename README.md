@@ -109,3 +109,6 @@ def plot_mcr(df_in, fig_size = (11.7, 8.27)):
 plot_mcr(rf_results)
 plt.show()
 ```
+
+### Example output plot if using the code above
+![Example image](http://cs.nott.ac.uk/~pszgss/research/mcr/examplemcr.png)
