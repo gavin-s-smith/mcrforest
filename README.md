@@ -1,6 +1,6 @@
 # mcrforest
 
-This repository contains the code from our 2020 NeurIPS paper (to appear) on Model Class Reliance. 
+This repository contains the code from our 2020 NeurIPS paper (to appear, pre-print available soon) on Model Class Reliance. 
 
 ## Installation
 Install for use via pip:
@@ -40,7 +40,7 @@ import seaborn as sns
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
-from mcrforest.forest import RandomForestClassifier
+from mcrforest.forest import RandomForestRegressor
 
 # Load data
 X_train = pd.read_csv('X_train.csv')
