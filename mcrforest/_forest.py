@@ -510,6 +510,71 @@ class BaseForest(MultiOutputMixin, BaseEnsemble, metaclass=ABCMeta):
         return np.mean(acc_set_sur_and_truffle)
 
 
+    def plot_mcr(self,X_in, y_in, feature_names = None, feature_groups_of_interest = 'all individual features', num_times = 100, show_fig = True):
+            
+            import pandas as pd
+            if isinstance(X_in, pd.DataFrame):
+                X = X.values
+                if feature_names is None:
+                    feature_names = X.columns.tolist()
+            else:
+                X = X_in
+                if feature_names is None:
+                    feature_names = ['f_{}'.format(i) for i in range(X.shape[1])]
+
+            
+            if isinstance(y_in, pd.DataFrame): 
+                y = y_in.values
+            else:
+                y = y_in
+
+            
+            results = []
+            if isinstance(feature_groups_of_interest, str):
+                if feature_groups_of_interest == 'all individual features':
+                    groups_of_indicies_to_permute = [[x] for x in range(len(feature_names))]
+                else:
+                    raise Exception('feature_groups_of_interest incorrectly specified. If not specifying to use all individual features via "all individual features" you must pass a numpy array of numpy arrays. See the documentation on github.')
+            elif not isinstance(feature_groups_of_interest, np.array):
+                raise Exception('feature_groups_of_interest incorrectly specified. If not specifying to use all individual features via "all individual features" you must pass a numpy array of numpy arrays. See the documentation on github.')
+            
+            
+            # New MCR+ perm imp
+            for gp in groups_of_indicies_to_permute:
+                rn = self.mcr(X,y, np.asarray(gp) ,  num_times = num_times, mcr_type = 1)
+                results.append([','.join([feature_names[x] for x in gp]), 'RF-MCR+', rn])
+
+
+            # New MCR- perm imp
+            for gp in groups_of_indicies_to_permute:
+                rn = self.mcr(X,y, np.asarray(gp) ,  num_times = num_times,  mcr_type = -1)
+                results.append([','.join([feature_names[x] for x in gp]), 'RF-MCR-', rn])
+
+            lbl = [ x[0] for x in results if 'MCR+' in x[1] ]
+            mcrp = [ x[2] for x in results if 'MCR+' in x[1] ]
+            mcrm = [ x[2] for x in results if 'MCR-' in x[1] ]
+
+            print('MCR+ sum: {}'.format(sum(mcrp)))
+
+            rf_results2 = pd.DataFrame({'variable':lbl, 'MCR+':mcrp, 'MCR-':mcrm})
+
+            import seaborn as sns
+            import matplotlib.pyplot as plt
+
+            def plot_mcr(df_in, fig_size = (11.7, 8.27)):
+                df_in = df_in.copy()
+                df_in.columns = [ x.replace('MCR+', 'MCR- (lollypops) | MCR+ (bars)') for x in df_in.columns]
+                ax = sns.barplot(x='MCR- (lollypops) | MCR+ (bars)',y='variable',data=df_in)
+                plt.gcf().set_size_inches(fig_size)
+                plt.hlines(y=range(df_in.shape[0]), xmin=0, xmax=df_in['MCR-'], color='skyblue')
+                plt.plot(df_in['MCR-'], range(df_in.shape[0]), "o", color = 'skyblue')
+
+            plot_mcr(rf_results2)
+            if show_fig:
+                plt.show()
+
+            return rf_results2
+
 # GAVIN TODO: Integrate better
     def mcr_extra(self, X_in, y_in, indices_to_permute, e_switch = False, 
                                     num_times = 100, debug = False, mcr_type = 1, restrict_trees_to = None, mcr_as_ratio = False, seed = 13111985 ):
@@ -1184,9 +1249,9 @@ class BaseForest(MultiOutputMixin, BaseEnsemble, metaclass=ABCMeta):
             for i in range( X.shape[1] ):
                 # if tidx==3 and i == 2:
                 #     print('p')
-                b = mean_squared_error(y, t.predict_vim(X,np.asarray([i]), 1))
+                b = mean_squared_error(y, t.predict_vim(X,np.asarray([i], dtype=np.int64), 1))
                 #b = mean_squared_error(y[5], t.predict_vim(X[5,:].reshape(1,-1),np.asarray([i]), 1))
-                c = mean_squared_error(y, t.predict_vim(X,np.asarray([i]), -1))
+                c = mean_squared_error(y, t.predict_vim(X,np.asarray([i], dtype=np.int64), -1))
                 if a != b:
                     raise Exception('MAJOR SURROGATE ERROR WITH MCR+. Or you forgot to set bootstrap = False.')
                 if a != c:

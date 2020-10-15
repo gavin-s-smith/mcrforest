@@ -61,7 +61,8 @@ X_train = pd.read_csv('X_train.csv')
 y_train = pd.read_csv('y_train.csv')
 
 # If we are going to use the training set for computing MCR then we MUST ensure 
-# we have controlled the complexity of the fit.
+# we have controlled the complexity of the fit. This is equally true for traditional
+# permutation importance.
 # See: https://christophm.github.io/interpretable-ml-book/feature-importance.html
 
 base_model = RandomForestRegressor(random_state = 13111985, bootstrap=False)
@@ -112,3 +113,12 @@ plt.show()
 
 ### Example output plot if using the code above
 ![Example image](http://cs.nott.ac.uk/~pszgss/research/mcr/examplemcr.png)
+
+## Common errors
+`AttributeError: 'RandomForestRegressor' object has no attribute '_validate_data'`
+mcrforest requires sklearn version >= 0.23. Ensure you reinstall mcrforest after upgrading.
+
+### Windows Only
+`Cannot open include file: 'basetsd.h': No such file or directory`
+You need to ensure you have the correct compilers for Windows installed since the package uses Cython.
+Install the correct compilers for your version of python from: https://wiki.python.org/moin/WindowsCompilers
