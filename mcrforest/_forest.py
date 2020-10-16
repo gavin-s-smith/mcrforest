@@ -282,6 +282,12 @@ class BaseForest(MultiOutputMixin, BaseEnsemble, metaclass=ABCMeta):
         
         is_classification = is_classifier(self)
 
+        # if (windows) passes an int32 who cares, we'll just upgrade it to int64 for the cython code. If we don't have integers though, throw an exception
+        if not indices_to_permute.dtype.kind in np.typecodes["AllInteger"]:
+                raise Exception('indices_to_permute were not integers. Instead you passed: {}'.format(indices_to_permute))
+        else:
+            indices_to_permute = indices_to_permute.astype(np.int64)
+
         if mcr_as_ratio:
             print('WARNING: You have set mcr_as_ratio as true. This part of the implementation is experimental and has not been checked for edge case correctness outside the dataset used in the Neurips paper.')
 
