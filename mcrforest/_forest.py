@@ -771,6 +771,7 @@ class BaseForest(MultiOutputMixin, BaseEnsemble, metaclass=ABCMeta):
                 
                 if mcr_as_ratio:
                     sur_and_truffle = new_forest_perm_data_score/new_forest_orig_data_score
+                    raise Exception('MCR as ratio for classification is likely currently computed incorrectly.')
                 else:
                     sur_and_truffle = new_forest_orig_data_score - new_forest_perm_data_score
                 
@@ -1249,20 +1250,22 @@ class BaseForest(MultiOutputMixin, BaseEnsemble, metaclass=ABCMeta):
 
 
         # GAVIN VERIFY BUILD OF TREES
-
+        from sklearn.metrics import accuracy_score
         for tidx, t in enumerate(self.estimators_):
             a = mean_squared_error(y, t.predict(X))
+            aa = accuracy_score(y, t.predict(X))
             for i in range( X.shape[1] ):
                 # if tidx==3 and i == 2:
                 #     print('p')
                 b = mean_squared_error(y, t.predict_vim(X,np.asarray([i], dtype=np.int64), 1))
+                bb = accuracy_score(y, t.predict_vim(X,np.asarray([i], dtype=np.int64), 1))
                 #b = mean_squared_error(y[5], t.predict_vim(X[5,:].reshape(1,-1),np.asarray([i]), 1))
                 c = mean_squared_error(y, t.predict_vim(X,np.asarray([i], dtype=np.int64), -1))
                 if a != b:
                     print('np.asarray([i], dtype=np.int64): {}'.format(np.asarray([i], dtype=np.int64)))
                     print('Bootstrap: {}'.format(self.bootstrap))
-                    print('a: {}'.format(a))
-                    print('b: {}'.format(b))
+                    print('a: {} {}'.format(a,aa))
+                    print('b: {} {}'.format(b,bb))
                     raise Exception('MAJOR SURROGATE ERROR WITH MCR+. Or you forgot to set bootstrap = False.')
                 if a != c:
                     raise Exception('MAJOR SURROGATE ERROR WITH MCR-. Or you forgot to set bootstrap = False.')
