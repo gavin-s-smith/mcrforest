@@ -19,5 +19,10 @@ mcrforest/*.so
 test.py
 test2.py
 test_vanja.py
+test_roberto.py
+compas_X.csv
+compas_y.csv
+compas_train_indices.csv
+
 *.csv
 Wen.py
