@@ -276,7 +276,7 @@ class BaseForest(MultiOutputMixin, BaseEnsemble, metaclass=ABCMeta):
 # GAVIN TODO: Integrate better
     def mcr(self, X_in, y_in, indices_to_permute, e_switch = False, 
                                     num_times = 100, debug = False, 
-                                    mcr_type = 1, restrict_trees_to = None, mcr_as_ratio = False, seed = 13111985, 
+                                    mcr_type = 1, mcr_ordering = None, restrict_trees_to = None, mcr_as_ratio = False, seed = 13111985, 
                                     enable_Tplus_transform = True
                                     ):
         
@@ -425,14 +425,18 @@ class BaseForest(MultiOutputMixin, BaseEnsemble, metaclass=ABCMeta):
                 else:
                     new_trees_indexes.append(i_ntrees)
 
+            if mcr_ordering is None:
+                mcr_indicator = mcr_type
+            else:
+                mcr_indicator = mcr_ordering
                    
             if is_classification:
-                forest_scorer = lambda x: np.mean(self.predict_vim(x,indices_to_permute,mcr_type)==y)
+                forest_scorer = lambda x: np.mean(self.predict_vim(x,indices_to_permute,mcr_indicator)==y)
             else:
                 if self.get_params()['criterion'] == 'mse':
-                    forest_scorer = lambda x: np.mean( (self.predict_vim(x,indices_to_permute,mcr_type)-y)**2 )
+                    forest_scorer = lambda x: np.mean( (self.predict_vim(x,indices_to_permute,mcr_indicator)-y)**2 )
                 else:
-                    forest_scorer = lambda x: np.mean( np.abs(self.predict_vim(x,indices_to_permute,mcr_type)-y) )
+                    forest_scorer = lambda x: np.mean( np.abs(self.predict_vim(x,indices_to_permute,mcr_indicator)-y) )
 
             if is_classification:
                 forest_scorer_reference_model = lambda x: np.mean(self.predict(x)==y)
@@ -868,10 +872,10 @@ class BaseForest(MultiOutputMixin, BaseEnsemble, metaclass=ABCMeta):
 
 
  # GAVIN TODO: Integrate better
-    def permutation_importance_new(self, X_in, y_in, indices_to_permute, permute, pre_permutated = False, 
-                                    num_times = 100, debug = False, mcr_type = 1, restrict_trees_to = None, mcr_as_ratio = False ):
+    # def permutation_importance_new(self, X_in, y_in, indices_to_permute, permute, pre_permutated = False, 
+    #                                 num_times = 100, debug = False, mcr_type = 1, restrict_trees_to = None, mcr_as_ratio = False ):
         
-        is_classification = is_classifier(self)
+    #     is_classification = is_classifier(self)
 
 
 
@@ -884,168 +888,168 @@ class BaseForest(MultiOutputMixin, BaseEnsemble, metaclass=ABCMeta):
 
 
     # GAVIN TODO: Integrate better
-    def permutation_importance_new_real(self, X_in, y_in, indices_to_permute, permute, pre_permutated = False, 
-                                    num_times = 100, debug = False, mcr_type = 1, restrict_trees_to = None, mcr_as_ratio = False, seed = 13111985 ):
+    # def permutation_importance_new_real(self, X_in, y_in, indices_to_permute, permute, pre_permutated = False, 
+    #                                 num_times = 100, debug = False, mcr_type = 1, restrict_trees_to = None, mcr_as_ratio = False, seed = 13111985 ):
         
-        is_classification = is_classifier(self)
-        if not seed is None:
-            np.random.seed(seed)
-        """ Return the accuracy of the prediction of X compared to y. """
+    #     is_classification = is_classifier(self)
+    #     if not seed is None:
+    #         np.random.seed(seed)
+    #     """ Return the accuracy of the prediction of X compared to y. """
         
-        if is_classification:
-            base_score = self.score(X_in,y_in)
-            card_y = len(np.unique(y_in))
-        else:
-            if self.get_params()['criterion'] == 'mse':
-                base_score = mean_squared_error(y_in, self.predict(X_in))
-            elif self.get_params()['criterion'] == 'mae':
-                base_score = mean_absolute_error(y_in, self.predict(X_in))
-            else:
-                raise Exception('Unsupported criterion: {}'.format(self.get_params()['criterion']))
+    #     if is_classification:
+    #         base_score = self.score(X_in,y_in)
+    #         card_y = len(np.unique(y_in))
+    #     else:
+    #         if self.get_params()['criterion'] == 'mse':
+    #             base_score = mean_squared_error(y_in, self.predict(X_in))
+    #         elif self.get_params()['criterion'] == 'mae':
+    #             base_score = mean_absolute_error(y_in, self.predict(X_in))
+    #         else:
+    #             raise Exception('Unsupported criterion: {}'.format(self.get_params()['criterion']))
 
-        acc_set = []
-        n_samples = len(y_in)
-        if restrict_trees_to is None:
-            n_trees = len(self.estimators_)
-        else:
-            n_trees = restrict_trees_to
-       # print('====d=========================')
-        for i in range(num_times):
-            #print('==========ud==================: {}'.format(indices_to_permute))
-            X = X_in.copy()
-            y = y_in.copy()
-            if not pre_permutated:
-                for i in indices_to_permute:
-                    #print('==w===========================')
-                    inplace_permute_or_random_sample_with_replacement( X, i, permute = permute )
-                    #np.random.shuffle(X[:, i])
+    #     acc_set = []
+    #     n_samples = len(y_in)
+    #     if restrict_trees_to is None:
+    #         n_trees = len(self.estimators_)
+    #     else:
+    #         n_trees = restrict_trees_to
+    #    # print('====d=========================')
+    #     for i in range(num_times):
+    #         #print('==========ud==================: {}'.format(indices_to_permute))
+    #         X = X_in.copy()
+    #         y = y_in.copy()
+    #         if not pre_permutated:
+    #             for i in indices_to_permute:
+    #                 #print('==w===========================')
+    #                 inplace_permute_or_random_sample_with_replacement( X, i, permute = permute )
+    #                 #np.random.shuffle(X[:, i])
 
-            if is_classification:
-                # we have to deal with use the probabilites to effectively "repredict" using the forest found by the new trees
-                # via the soft voting function
-                y_predict_for_each_tree = np.ones([n_trees, n_samples ])*-9999
-                y_predict_for_each_tree_proba = np.ones([n_trees, n_samples, card_y ])*-9999
-                for eidx in range(n_trees):
-                    y_predict_for_each_tree_proba[eidx,:,:] = self.estimators_[eidx].predict_vim(X, indices_to_permute, mcr_type=mcr_type)
-                    y_predict_for_each_tree[eidx,:] = self.prob2predictions( y_predict_for_each_tree_proba[eidx,:,:] )
+    #         if is_classification:
+    #             # we have to deal with use the probabilites to effectively "repredict" using the forest found by the new trees
+    #             # via the soft voting function
+    #             y_predict_for_each_tree = np.ones([n_trees, n_samples ])*-9999
+    #             y_predict_for_each_tree_proba = np.ones([n_trees, n_samples, card_y ])*-9999
+    #             for eidx in range(n_trees):
+    #                 y_predict_for_each_tree_proba[eidx,:,:] = self.estimators_[eidx].predict_vim(X, indices_to_permute, mcr_type=mcr_type)
+    #                 y_predict_for_each_tree[eidx,:] = self.prob2predictions( y_predict_for_each_tree_proba[eidx,:,:] )
                 
-            else:
-                y_predict_for_each_tree = np.ones([n_trees, n_samples])*-9999
-                for eidx in range(n_trees):
-                    y_predict_for_each_tree[eidx,:] = self.estimators_[eidx].predict_vim(X, indices_to_permute, mcr_type=mcr_type)
+    #         else:
+    #             y_predict_for_each_tree = np.ones([n_trees, n_samples])*-9999
+    #             for eidx in range(n_trees):
+    #                 y_predict_for_each_tree[eidx,:] = self.estimators_[eidx].predict_vim(X, indices_to_permute, mcr_type=mcr_type)
 
-            # Compute the per tree prediction accuracys
+    #         # Compute the per tree prediction accuracys
 
-            # Compute (by averaging across all samples) the tree MDA
-            # per_tree_base_minus_acc is now a 1D set of averages, one per tree. 
-            # the average of these would be the overall MDA
+    #         # Compute (by averaging across all samples) the tree MDA
+    #         # per_tree_base_minus_acc is now a 1D set of averages, one per tree. 
+    #         # the average of these would be the overall MDA
 
-            # we would normally convert to MDA or error gain here, but we might want either
-            # a loss or a ratio, so we just make sure max is more damage and fix the exact
-            # reported measure later
-            new_type = False
-            if is_classification and new_type:
-                #per_tree_base_predict_performace = base_score - np.mean( y_predict_for_each_tree == np.tile(y,(n_trees,1)), axis = 1 )
-                # we want -ve as we want the disruption that resulted in the lowest accuracy for MCR+, opposite for MCR-
-                per_tree_base_predict_performace= -np.mean( y_predict_for_each_tree == np.tile(y,(n_trees,1)), axis = 1 )
+    #         # we would normally convert to MDA or error gain here, but we might want either
+    #         # a loss or a ratio, so we just make sure max is more damage and fix the exact
+    #         # reported measure later
+    #         new_type = False
+    #         if is_classification and new_type:
+    #             #per_tree_base_predict_performace = base_score - np.mean( y_predict_for_each_tree == np.tile(y,(n_trees,1)), axis = 1 )
+    #             # we want -ve as we want the disruption that resulted in the lowest accuracy for MCR+, opposite for MCR-
+    #             per_tree_base_predict_performace= -np.mean( y_predict_for_each_tree == np.tile(y,(n_trees,1)), axis = 1 )
 
-                # Adjust to consider equvilient trees
-                if debug:
-                    print("Per tree MDA:")
-                for i in range(n_trees):
-                    if mcr_type > 0:
-                        replacement_tree_idx = [x for x in self.forest_equivilents[i] if x < n_trees][np.argmax( per_tree_base_predict_performace[ [x for x in self.forest_equivilents[i] if x < n_trees] ] )]
-                        y_predict_for_each_tree_proba[i,:,:] = y_predict_for_each_tree_proba[replacement_tree_idx,:,:]
-                    else:
-                        replacement_tree_idx = [x for x in self.forest_equivilents[i] if x < n_trees][ np.argmin( per_tree_base_predict_performace[ [x for x in self.forest_equivilents[i] if x < n_trees] ] ) ]
-                        y_predict_for_each_tree_proba[i,:,:] = y_predict_for_each_tree_proba[replacement_tree_idx,:,:]
-                    if debug:
-                        print(per_tree_base_predict_performace[i]) 
+    #             # Adjust to consider equvilient trees
+    #             if debug:
+    #                 print("Per tree MDA:")
+    #             for i in range(n_trees):
+    #                 if mcr_type > 0:
+    #                     replacement_tree_idx = [x for x in self.forest_equivilents[i] if x < n_trees][np.argmax( per_tree_base_predict_performace[ [x for x in self.forest_equivilents[i] if x < n_trees] ] )]
+    #                     y_predict_for_each_tree_proba[i,:,:] = y_predict_for_each_tree_proba[replacement_tree_idx,:,:]
+    #                 else:
+    #                     replacement_tree_idx = [x for x in self.forest_equivilents[i] if x < n_trees][ np.argmin( per_tree_base_predict_performace[ [x for x in self.forest_equivilents[i] if x < n_trees] ] ) ]
+    #                     y_predict_for_each_tree_proba[i,:,:] = y_predict_for_each_tree_proba[replacement_tree_idx,:,:]
+    #                 if debug:
+    #                     print(per_tree_base_predict_performace[i]) 
                 
                 
                 
-                # We must re-compute the soft voting from our set of new (MCR+/- trees) represented by their proba scores in 
-                # y_predict_for_each_tree_proba[tree, samples, card_y]
+    #             # We must re-compute the soft voting from our set of new (MCR+/- trees) represented by their proba scores in 
+    #             # y_predict_for_each_tree_proba[tree, samples, card_y]
 
-                # 1st take the mean of the per sample probabilities across each tree
-                # Expect 
-                #self.classes_
-                tmp = np.mean(y_predict_for_each_tree_proba, axis = 0)
+    #             # 1st take the mean of the per sample probabilities across each tree
+    #             # Expect 
+    #             #self.classes_
+    #             tmp = np.mean(y_predict_for_each_tree_proba, axis = 0)
                 
-                if tmp.shape != (n_samples, card_y):
-                    raise Exception('ERROR 09sgha')
+    #             if tmp.shape != (n_samples, card_y):
+    #                 raise Exception('ERROR 09sgha')
                 
-                # Convert the sample proba predictions to predictions
-                preds = self.prob2predictions(tmp)
+    #             # Convert the sample proba predictions to predictions
+    #             preds = self.prob2predictions(tmp)
                 
-                # compute the new classifier accuracy
-                acc = np.mean(preds == y)
+    #             # compute the new classifier accuracy
+    #             acc = np.mean(preds == y)
 
-                if not mcr_as_ratio:
-                # Here we return Mean decrease in Error (MDA)
-                    acc_set.append( base_score - acc ) 
-                else:
-                # Use 1-0 loss
-                    acc_set.append( (1 - acc) / (1-base_score)  )
+    #             if not mcr_as_ratio:
+    #             # Here we return Mean decrease in Error (MDA)
+    #                 acc_set.append( base_score - acc ) 
+    #             else:
+    #             # Use 1-0 loss
+    #                 acc_set.append( (1 - acc) / (1-base_score)  )
 
-            elif is_classification and not new_type:
+    #         elif is_classification and not new_type:
 
-                per_tree_base_predict_performace= -np.mean( y_predict_for_each_tree == np.tile(y,(n_trees,1)), axis = 1 )
-                # Adjust to consider equvilient trees
-                if debug:
-                    print("Per tree MDA:")
-                for i in range(n_trees):
-                    if mcr_type > 0:
-                        per_tree_base_predict_performace[i] = max( per_tree_base_predict_performace[ [x for x in self.forest_equivilents[i] if x < n_trees] ] )
-                    else:
-                        per_tree_base_predict_performace[i] = min( per_tree_base_predict_performace[ [x for x in self.forest_equivilents[i] if x < n_trees] ] )
-                    if debug:
-                        print(per_tree_base_predict_performace[i]) 
+    #             per_tree_base_predict_performace= -np.mean( y_predict_for_each_tree == np.tile(y,(n_trees,1)), axis = 1 )
+    #             # Adjust to consider equvilient trees
+    #             if debug:
+    #                 print("Per tree MDA:")
+    #             for i in range(n_trees):
+    #                 if mcr_type > 0:
+    #                     per_tree_base_predict_performace[i] = max( per_tree_base_predict_performace[ [x for x in self.forest_equivilents[i] if x < n_trees] ] )
+    #                 else:
+    #                     per_tree_base_predict_performace[i] = min( per_tree_base_predict_performace[ [x for x in self.forest_equivilents[i] if x < n_trees] ] )
+    #                 if debug:
+    #                     print(per_tree_base_predict_performace[i]) 
                 
-                if not mcr_as_ratio:
-                    # Here we return Mean increase in Error (MIE)
-                    per_tree_base_predict_performace = base_score - per_tree_base_predict_performace
-                else:
-                    per_tree_base_predict_performace = per_tree_base_predict_performace / base_score
+    #             if not mcr_as_ratio:
+    #                 # Here we return Mean increase in Error (MIE)
+    #                 per_tree_base_predict_performace = base_score - per_tree_base_predict_performace
+    #             else:
+    #                 per_tree_base_predict_performace = per_tree_base_predict_performace / base_score
 
             
-                acc_set.append(np.mean(per_tree_base_predict_performace))
+    #             acc_set.append(np.mean(per_tree_base_predict_performace))
 
            
-            else:
-                #per_tree_base_predict_performace = np.mean( (y_predict_for_each_tree - np.tile(y,(n_trees,1)))**2, axis = 1 ) - base_score
+    #         else:
+    #             #per_tree_base_predict_performace = np.mean( (y_predict_for_each_tree - np.tile(y,(n_trees,1)))**2, axis = 1 ) - base_score
 
-                if self.get_params()['criterion'] == 'mse':
-                    per_tree_base_predict_performace = np.mean( (y_predict_for_each_tree - np.tile(y,(n_trees,1)))**2, axis = 1 ) 
-                elif self.get_params()['criterion'] == 'mae':
-                    per_tree_base_predict_performace = np.mean( np.abs(y_predict_for_each_tree - np.tile(y,(n_trees,1))), axis = 1 ) 
-                else:
-                    raise Exception('Unsupported criterion: {}'.format(self.get_params()['criterion']))
+    #             if self.get_params()['criterion'] == 'mse':
+    #                 per_tree_base_predict_performace = np.mean( (y_predict_for_each_tree - np.tile(y,(n_trees,1)))**2, axis = 1 ) 
+    #             elif self.get_params()['criterion'] == 'mae':
+    #                 per_tree_base_predict_performace = np.mean( np.abs(y_predict_for_each_tree - np.tile(y,(n_trees,1))), axis = 1 ) 
+    #             else:
+    #                 raise Exception('Unsupported criterion: {}'.format(self.get_params()['criterion']))
 
-                # Adjust to consider equvilient trees
-                if debug:
-                    print("Per tree MDA:")
-                for i in range(n_trees):
-                    if mcr_type > 0:
-                        per_tree_base_predict_performace[i] = max( per_tree_base_predict_performace[ [x for x in self.forest_equivilents[i] if x < n_trees] ] )
-                    else:
-                        per_tree_base_predict_performace[i] = min( per_tree_base_predict_performace[ [x for x in self.forest_equivilents[i] if x < n_trees] ] )
-                    if debug:
-                        print(per_tree_base_predict_performace[i]) 
+    #             # Adjust to consider equvilient trees
+    #             if debug:
+    #                 print("Per tree MDA:")
+    #             for i in range(n_trees):
+    #                 if mcr_type > 0:
+    #                     per_tree_base_predict_performace[i] = max( per_tree_base_predict_performace[ [x for x in self.forest_equivilents[i] if x < n_trees] ] )
+    #                 else:
+    #                     per_tree_base_predict_performace[i] = min( per_tree_base_predict_performace[ [x for x in self.forest_equivilents[i] if x < n_trees] ] )
+    #                 if debug:
+    #                     print(per_tree_base_predict_performace[i]) 
                 
-                if not mcr_as_ratio:
-                    # Here we return Mean increase in Error (MIE)
-                    per_tree_base_predict_performace = per_tree_base_predict_performace - base_score
-                else:
-                    per_tree_base_predict_performace = per_tree_base_predict_performace / base_score
+    #             if not mcr_as_ratio:
+    #                 # Here we return Mean increase in Error (MIE)
+    #                 per_tree_base_predict_performace = per_tree_base_predict_performace - base_score
+    #             else:
+    #                 per_tree_base_predict_performace = per_tree_base_predict_performace / base_score
 
             
-                acc_set.append(np.mean(per_tree_base_predict_performace))
+    #             acc_set.append(np.mean(per_tree_base_predict_performace))
             
-        mean_accuracy = np.mean(acc_set) #calculate the average accuracy over all repeats
+    #     mean_accuracy = np.mean(acc_set) #calculate the average accuracy over all repeats
             
-        #print('RF New Perm: base:{}. MDA: {}'.format(base_score,mean_accuracy)) #new
-        return mean_accuracy #new
+    #     #print('RF New Perm: base:{}. MDA: {}'.format(base_score,mean_accuracy)) #new
+    #     return mean_accuracy #new
 
 
 
@@ -1615,6 +1619,7 @@ class ForestClassifier(ClassifierMixin, BaseForest, metaclass=ABCMeta):
         y : ndarray of shape (n_samples,) or (n_samples, n_outputs)
             The predicted classes.
         """
+        
         proba = self.predict_proba_vim(X,permuated_vars, mcr_type)
 
         if self.n_outputs_ == 1:

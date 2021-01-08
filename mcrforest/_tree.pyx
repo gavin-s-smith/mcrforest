@@ -811,6 +811,18 @@ cdef class Tree:
         if self.n_outputs == 1:
             out = out.reshape(X.shape[0], self.max_n_classes)
         return out
+    
+    cpdef np.ndarray predict_vim_via_ordering(self, object X, object permuted_vars, object mcr_ordering):
+        """Predict target for X."""
+        out = self._get_value_ndarray().take(self._apply_dense_surrogate_via_mcr_ordering(X,permuted_vars,mcr_ordering), axis=0,
+                                             mode='clip')
+        if self.n_outputs == 1:
+            out = out.reshape(X.shape[0], self.max_n_classes)
+        return out
+
+
+
+        
 
     cpdef np.ndarray apply(self, object X):
         """Finds the terminal region (=leaf node) for each sample in X."""
@@ -903,6 +915,113 @@ cdef class Tree:
                         node = &self.nodes[node.right_child]
 
                 out_ptr[i] = <SIZE_t>(node - self.nodes)  # node offset
+
+        return out
+
+    cdef inline np.ndarray _apply_dense_surrogate_via_mcr_ordering(self, object X, object permuted_vars, object mcr_ordering):
+        """Finds the terminal region (=leaf node) for each sample in X."""
+
+        # Check input
+        if not isinstance(X, np.ndarray):
+            raise ValueError("X should be in np.ndarray format, got %s"
+                             % type(X))
+        
+        if not isinstance(mcr_ordering, np.ndarray):
+            raise ValueError("mcr_ordering should be in np.ndarray format, got %s"
+                             % type(mcr_ordering))
+
+
+        if X.dtype != DTYPE:
+            raise ValueError("X.dtype should be np.float32, got %s" % X.dtype)
+
+        # Extract input
+        cdef const DTYPE_t[:, :] X_ndarray = X
+        cdef SIZE_t n_samples = X.shape[0]
+
+        
+        cdef const SIZE_t[:] perm_vars = permuted_vars
+        cdef SIZE_t n_permvars = len(permuted_vars)
+
+        cdef const SIZE_t[:] mcr_order = mcr_ordering
+        cdef SIZE_t n_mcr_order = len(mcr_ordering)
+
+        cdef SIZE_t feature_to_use = 0
+        cdef DTYPE_t threshold_to_use = 0
+        # Initialize output
+        cdef np.ndarray[SIZE_t] out = np.zeros((n_samples,), dtype=np.intp)
+        cdef SIZE_t* out_ptr = <SIZE_t*> out.data
+
+        # Initialize auxiliary data-structure
+        cdef Node* node = NULL
+        cdef SIZE_t i = 0
+        cdef SIZE_t mcr_idx = 0
+        cdef int found = 0
+        
+        cdef int do_not_flip = 1 # 1 is don't flip, -1 is flip.  
+
+        #print('Number of permuted variables: {}'.format(n_permvars))
+        #print('MCR TYPE: {}'.format(c_mcr_type))
+
+        #print('Using ordering based MCR.')
+
+        with nogil:
+            for i in range(n_samples):
+                #with gil:
+                #    print('\n========== CONSIDERING SAMPLE {} ================'.format(i))
+                node = self.nodes
+                # While node not a leaf
+                while node.left_child != _TREE_LEAF:
+                    # ... and node.right_child != _TREE_LEAF:
+                    #with gil:
+                    #    print('-------------->{}'.format(node.num_surrogates))
+                  
+                    do_not_flip = 1 
+                    feature_to_use = node.feature
+                    threshold_to_use = node.threshold
+
+                    found = 0
+
+                    # for each variable in the order of use (L2R for MCR+ and MCR-, this ordering will be different in each case)
+                    for io in range(n_mcr_order):
+
+                        # check if real split is this var
+                        if feature_to_use == mcr_order[io]:
+                            found = -1
+                        else:
+                            # check all surrogates
+                            for iga in range(node.num_surrogates):
+                                if node.surrogate_feature[iga] == mcr_order[io]:
+                                    found = 1
+                                    feature_to_use = node.surrogate_feature[iga] 
+                                    threshold_to_use = node.surrogate_threshold[iga] 
+                                    do_not_flip = node.surrogate_flip[iga] # yes this is correct surrogate_flip[x] = 1 means don't flip
+                                    break
+
+                        if found != 0:
+                            break
+
+
+                    if do_not_flip == 1:
+                        #with gil:
+                        #    if i == 0:
+                        #        print('Considering feature: {}] {} <= {}. If True: going LEFT.'.format(feature_to_use, X_ndarray[i, feature_to_use], threshold_to_use))
+                        if X_ndarray[i, feature_to_use] <= threshold_to_use:
+                            node = &self.nodes[node.left_child]
+                        else:
+                            node = &self.nodes[node.right_child]
+                    else:
+                        #with gil:
+                        #    if i == 0:
+                        #        print('Considering feature: {}] {} <= {}. If True: going RIGHT.'.format(feature_to_use, X_ndarray[i, feature_to_use], threshold_to_use))
+                        if X_ndarray[i, feature_to_use] <= threshold_to_use:
+                            node = &self.nodes[node.right_child]
+                        else:
+                            node = &self.nodes[node.left_child]
+
+                out_ptr[i] = <SIZE_t>(node - self.nodes)  # node offset
+
+        
+        #print('===> {}'.format(out))
 
         return out
 

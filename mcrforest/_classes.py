@@ -21,6 +21,7 @@ from abc import abstractmethod
 from math import ceil
 
 import numpy as np
+import pandas as pd
 from scipy.sparse import issparse
 
 from sklearn.base import BaseEstimator
@@ -492,7 +493,12 @@ class BaseDecisionTree(MultiOutputMixin, BaseEstimator, metaclass=ABCMeta):
         """
         check_is_fitted(self)
         X = self._validate_X_predict(X, check_input)
-        proba = self.tree_.predict_vim(X, permuted_vars, mcr_type)
+        if type(mcr_type) == int:
+            proba = self.tree_.predict_vim(X, permuted_vars, mcr_type)
+        elif isinstance(mcr_type,(list,pd.core.series.Series,np.ndarray)):
+            proba = self.tree_.predict_vim_via_ordering(X, permuted_vars, mcr_type)
+        else:
+            raise Exception('mcr_type must be either 1 or -1 OR an ordered list of variable')
         n_samples = X.shape[0]
 
         #print('CALLING HERE alsdfhalsdfjal')
@@ -1009,7 +1015,15 @@ class DecisionTreeClassifier(ClassifierMixin, BaseDecisionTree):
         """
         check_is_fitted(self)
         X = self._validate_X_predict(X, check_input)
-        proba = self.tree_.predict_vim(X, permuted_vars, mcr_type)
+        
+        if type(mcr_type) == int:
+            proba = self.tree_.predict_vim(X, permuted_vars, mcr_type)
+        elif isinstance(mcr_type,(list,pd.core.series.Series,np.ndarray)):
+            proba = self.tree_.predict_vim_via_ordering(X, permuted_vars, mcr_type)
+        else:
+            raise Exception('mcr_type must be either 1 or -1 OR an ordered list of variable')
+
+        
 
         if self.n_outputs_ == 1:
             proba = proba[:, :self.n_classes_]

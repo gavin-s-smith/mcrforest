@@ -74,6 +74,7 @@ cdef class Tree:
 
     cpdef np.ndarray predict(self, object X)
     cpdef np.ndarray predict_vim(self, object X, object permuted_vars, int mcr_type)
+    cpdef np.ndarray predict_vim_via_ordering(self, object X, object permuted_vars, object mcr_ordering)
 
 
     cpdef void print_tree(self, object col_names)
@@ -82,6 +83,7 @@ cdef class Tree:
     cpdef np.ndarray apply(self, object X)
     cdef np.ndarray _apply_dense(self, object X)
     cdef np.ndarray _apply_dense_surrogate(self, object X, object permuted_vars, int mcr_type)
+    cdef np.ndarray _apply_dense_surrogate_via_mcr_ordering(self, object X, object permuted_vars, object mcr_ordering)
     cdef np.ndarray _apply_sparse_csr(self, object X)
 
     cpdef object decision_path(self, object X)
