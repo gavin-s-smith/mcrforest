@@ -4,7 +4,6 @@ import sys
 # mypy error: Module X has no attribute y (typically for C extensions)
 from . import _forest  # type: ignore
 from sklearn.externals._pep562 import Pep562
-from sklearn.utils.deprecation import _raise_dep_warning_if_not_pytest
 
 #deprecated_path = 'mcrforest'
 #correct_import_path = 'mcrforest'
