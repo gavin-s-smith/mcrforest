@@ -549,7 +549,7 @@ class BaseForest(MultiOutputMixin, BaseEnsemble, metaclass=ABCMeta):
         
 
 
-    def mcr(self, X_in, y_in, indices_to_permute, e_switch = False, 
+    def mcr(self, X_in, y_in, indices_to_permute, 
                                     num_times = 100, debug = False, debug_call = False, 
                                     mcr_type = 1, mcr_ordering = None, restrict_trees_to = None, mcr_as_ratio = False, seed = 13111985, 
                                     enable_Tplus_transform = True
@@ -559,8 +559,37 @@ class BaseForest(MultiOutputMixin, BaseEnsemble, metaclass=ABCMeta):
         Parameters
         ----------
         X_in: numpy.array
+                The input feature matrix
+        y_in: numpy.array
+                The output feature array
+        indices_to_permute: np.array
+                The indicies to permute. Typically a one element array denoting the varaible of interest for MCR.
+        num_times: int
+                Number of times variable will be permuted when computing the MDA for MCR.
+        debug: bool
+            If True the method returns: 
+            1. Mean performance of the new forest using both surrogates and tree replacement
+            2. Mean performance of the new forest using only surrogates
+            3. Mean performance of the original forest
+            4. A string with the min, mean and max amount the trees left differed from their reference tree (i.e. amount left the 0-Rashomon set)
+        debug_call: bool
+            If True print the function call showing a select set (hardcoded) parameters values to aid in debuging along with the value returned (if debug = False).
+        mcr_type: int [-1 or 1]
+            For MCR+: 1, for MCR-: -1
         mcr_ordering: numpy.array
                     a 1D numpy array of input variable indices indicating which variables must be used before others (Left to Right in the array)
+        restrict_trees_to: int
+                If not None, only use the first n trees in the reference forest. 
+        mcr_as_ratio: bool
+                    Compute the MCR ratio (as per Fisher et. al's 2019 JMLR paper) rather than the difference in predictive performance. 
+                    Not tested outside of the specific dataset used within that paper and Smith et. al. Model Class Reliance for Random Forests (2020). 
+                    SHOULD NOT BE USED (i.e. mcr_as_ratio should remain set to False )
+        seed: int
+            Random number generator seed.
+        enable_Tplus_transform: bool
+                            If True the tree transform will be used. 
+                            NOTE: If this parameter is set to False then this function no longer computes the MCR. 
+                                  See G. SMITH, R. MANSILLA and J. GOULDING, 2020. Model Class Reliance for Random Forests. In 34th Conference on Neural Information Processing Systems (NeurIPS 2020), Vancouver, Canada
         """
 
         if debug_call:
@@ -662,25 +691,33 @@ class BaseForest(MultiOutputMixin, BaseEnsemble, metaclass=ABCMeta):
                 # for this tree get the set of trees that have accuacy equiviliency
                 indexs_of_eq_forests = self.forest_equivilents[i_ntrees]
                 
+
                 if mcr_type > 0:
+                    # If we have MCR+ we want to select the tree with the largest change in predictive peformance (most damage)
                     min_or_max = np.max
                 else:
+                    # If we have MCR+ we want to select the tree with the smallest change in predictive peformance (least damage)
                     min_or_max = np.min
-                #print(np.abs(per_tree_diff_in_loss_ref_tree_vs_fplus_tree[ indexs_of_eq_forests ] - 
-                #                                        min_or_max(per_tree_diff_in_loss_ref_tree_vs_fplus_tree[ indexs_of_eq_forests ])) )
+                
+                # Only consider those trees that are the min (max) [MCR- (MCR+)] with no tolerance. 
+                # Could also have arg-sorted the threshold set and selected the first element.
                 equally_best_worst_tree_set = np.asarray(indexs_of_eq_forests)[ 
                                                         np.abs(per_tree_diff_in_loss_ref_tree_vs_fplus_tree[ indexs_of_eq_forests ] - 
                                                         min_or_max(per_tree_diff_in_loss_ref_tree_vs_fplus_tree[ indexs_of_eq_forests ])) 
                                                         <= 0
                                                 ]
-                
+                # The threhold set. A superset of equally_best_worst_tree_set. Should really only compute one.
                 equally_best_worst_tree_set_theshold = np.asarray(indexs_of_eq_forests)[ 
                                                         np.abs(per_tree_diff_in_loss_ref_tree_vs_fplus_tree[ indexs_of_eq_forests ] - 
                                                         min_or_max(per_tree_diff_in_loss_ref_tree_vs_fplus_tree[ indexs_of_eq_forests ])) 
                                                         <= 0.001 #self.mcr_tree_equivilient_tol
                                                 ]
-                
+                # Select the equally performant tree that will be used in the new forest instead of the current one (indexed by i_ntrees)
+                # which is most (least) [MCR+ (MCR-)] relient on the varaible (or variable group) or interst.
                 new_trees_indexes.append( equally_best_worst_tree_set[0] ) # take a random one
+
+                # set the list of trees that (1) has equal predictive performance and (2) relies on the varaible (set) of interest to the
+                # same degree (where same is defined byt the above threshold)
                 new_tree_equivilents.append(equally_best_worst_tree_set_theshold)
 
             else:
