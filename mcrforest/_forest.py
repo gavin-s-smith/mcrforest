@@ -1266,15 +1266,15 @@ class BaseForest(MultiOutputMixin, BaseEnsemble, metaclass=ABCMeta):
                     b = mean_squared_error(y, t.predict_vim(X,np.asarray([i], dtype=np.int64), 1))
                 
                 #b = mean_squared_error(y[5], t.predict_vim(X[5,:].reshape(1,-1),np.asarray([i]), 1))
-                c = mean_squared_error(y, t.predict_vim(X,np.asarray([i], dtype=np.int64), -1))
+                #c = mean_squared_error(y, t.predict_vim(X,np.asarray([i], dtype=np.int64), -1))
                 if a != b:
                     print('np.asarray([i], dtype=np.int64): {}'.format(np.asarray([i], dtype=np.int64)))
                     print('Bootstrap: {}'.format(self.bootstrap))
                     print('a: {}'.format(a))
                     print('b: {}'.format(b))
                     raise Exception('MAJOR SURROGATE ERROR WITH MCR+. Or you forgot to set bootstrap = False.')
-                if a != c:
-                    raise Exception('MAJOR SURROGATE ERROR WITH MCR-. Or you forgot to set bootstrap = False.')
+                #if a != c:
+                #    raise Exception('MAJOR SURROGATE ERROR WITH MCR-. Or you forgot to set bootstrap = False.')
 
         # GAVIN
 
