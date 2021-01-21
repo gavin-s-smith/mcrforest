@@ -15,6 +15,7 @@ mcrforest/*.so
 /build/
 
 .vscode/settings.json
+.vscode
 
 test.py
 test2.py
