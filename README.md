@@ -4,6 +4,8 @@ This repository contains the code from our 2020 NeurIPS paper:
 
 *Smith, G., Mansilla, R. and Goulding, J. "Model Class Reliance for Random Forests". 34th Conference on Neural Information Processing Systems (NeurIPS 2020), Vancouver, Canada.*
 
+[Paper](https://proceedings.neurips.cc/paper/2020/hash/fd512441a1a791770a6fa573d688bff5-Abstract.html) | [Supplementary Material](https://proceedings.neurips.cc/paper/2020/file/fd512441a1a791770a6fa573d688bff5-Supplemental.pdf) | [3 Minute Explainer Video](https://slideslive.com/38937760/model-class-reliance-mcr-for-random-forests)
+
 ## Installation
 Install for use via pip:
 ```
