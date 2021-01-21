@@ -57,8 +57,73 @@ RF-MCR Analysis:
 https://colab.research.google.com/drive/1AMDW9Ss69QEzgBkMgx8Tw_zIpcZnMcr4
 
 
+### Example Usage A
+```
+import seaborn as sns
+import pandas as pd
+import numpy as np
+import matplotlib.pyplot as plt
+from mcrforest.forest import RandomForestRegressor
 
-### Example Usage
+# Load data
+X_train = pd.read_csv('X_train.csv')
+y_train = pd.read_csv('y_train.csv')
+
+# If we are going to use the training set for computing MCR then we MUST ensure 
+# we have controlled the complexity of the fit. This is equally true for traditional
+# permutation importance.
+# See: https://christophm.github.io/interpretable-ml-book/feature-importance.html
+
+base_model = RandomForestRegressor(random_state = 13111985, bootstrap=False)
+
+search = {'n_estimators':[500],'max_features':['auto'], 'max_depth':[5,10,15,20,30]}
+
+rf_cv_model = GridSearchCV(base_model, search)
+rf_cv_model.fit(X_train,y_train)
+
+# Refit with best parameters
+model = RandomForestRegressor( **rf_cv_model.best_params_ )
+
+model.plot_mcr(X_train, y_train)
+
+```
+
+The documentation for plot_mcr is:
+```
+Method of an mcrforest.forest.RandomForestRegressor or  mcrforest.forest.RandomForestClassifier
+
+plot_mcr(X_in, y_in, feature_names = None, feature_groups_of_interest = 'all individual features', num_times = 100, show_fig = True)
+
+Compute the required information for an MCR plot and optionally display the MCR plot.
+
+Parameters
+----------
+X_in : {numpy array or Pandas DataFrame} of shape (n_samples, n_features)
+    The input samples. 
+y_in : {numpy array or Pandas DataFrame} of shape (n_samples)
+    The output values.
+feature_names : {array-like} of shape (n_features)
+    A list or array of the feature names. If None and a DataFrame is passed the feature names will be taken from the DataFrame else features will be named using numbers.
+feature_groups_of_interest : {str or numpy array of numpy arrays}
+    Either:
+    1. 'all individual features': compute the MCR+/- for all features individually. Equvilent to: [[x] for x in range(len(feature_names))]
+    2. A numpy array where each element is a numpy array of variable indexes which will be jointly permuated (i.e. these indexes will be considered a single unit of analysis for MCR)
+       A single MCR+ and single MCR- score (plotted as a single bar in the graph) will be computed for each sub-array.
+num_times : int
+        The number of permutations to use when computing the MCR.
+show_fig : bool
+        If True show the MCR graph. In either case a dataframe with the information that would have been shown in the graph is returned.
+
+Returns
+-------
+rf_results2 : {pandas DataFrame} of shape (2*[number_of_features OR len(feature_groups_of_interest)], 3)
+        A DataFrame with three columns: ['variable', 'MCR+', 'MCR-']
+        Where the column variable contains the variable name and the columns MCR+ and MCR- contain the variable's MCR+ and MCR- scores respectively.
+```
+
+
+### Example Usage B
+Example Usage B shows how to compute the MCR+/- values and then plot them without the help of `plot_mcr(.)`.
 ```
 import seaborn as sns
 import pandas as pd
