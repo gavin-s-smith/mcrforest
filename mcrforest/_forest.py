@@ -873,7 +873,7 @@ class BaseForest(MultiOutputMixin, BaseEnsemble, metaclass=ABCMeta):
 
             
         if isinstance(X_in, pd.DataFrame):
-            X = X.values
+            X = X_in.values
             if feature_names is None:
                 feature_names = X.columns.tolist()
         else:
