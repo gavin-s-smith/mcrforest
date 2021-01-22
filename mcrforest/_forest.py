@@ -1318,7 +1318,8 @@ class BaseForest(MultiOutputMixin, BaseEnsemble, metaclass=ABCMeta):
 
         if is_classifier(self):
             if np.sum(np.asarray(y) == 0) + np.sum(np.asarray(y) == 1) != len(y):
-                raise Exception('For classification, output labels must be either 0 or 1.') 
+                print('WARNING: EXPERIMENTAL: Ouput labels for classification are not 0 or 1.')
+                #raise Exception('For classification, output labels must be either 0 or 1.') 
         
         # Validate or convert input data
         if issparse(y):
