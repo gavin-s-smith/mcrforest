@@ -385,9 +385,9 @@ class BaseForest(MultiOutputMixin, BaseEnsemble, metaclass=ABCMeta):
             
             # for each tree make predictions for all samples using f+
             for eidx in range(n_trees):
-                per_ref_tree_preds[eidx,:] = self.estimators_[eidx].predict(X)
+                per_ref_tree_preds[eidx,:] = self.predict_tree(self.estimators_[eidx],X)
 
-                per_fplus_tree_preds[eidx,:] = self.estimators_[eidx].predict_vim(X_perm, indices_to_permute, mcr_type=mcr_type)
+                per_fplus_tree_preds[eidx,:] = self.predict_vim_tree( self.estimators_[eidx], X_perm, indices_to_permute, mcr_type=mcr_type)
                                                                       # predict_vim(X_perm, np.asarray([indices_to_permute[0]]), -1)
             
             # turn the predictions into either 1-0 loss or squared error with regard to the truth
@@ -547,8 +547,32 @@ class BaseForest(MultiOutputMixin, BaseEnsemble, metaclass=ABCMeta):
         else:
             self.estimators_ = self.estimators_m[var_index].copy()
             self.forest_equivilents = self.new_tree_equivilents_m[var_index].copy()
-        
 
+
+    def predict_tree(self, tree_estimator, X ):
+        rtn = tree_estimator.predict(X)
+            
+        if is_classifier(self):
+            # By default a sklearn RF will first convert the input classes to 0,1,2,3... etc.
+            # These will then be what the trees are trained off. I.e. y is mapped at the forest level (inputs 1,2) and trees learn and predict (0,1)
+            # Since here we are at the forest level we must map it back
+            rtn = self.classes_.take(rtn.astype(np.int64),axis=0)    
+
+        return rtn
+    
+    def predict_vim_tree(self, tree_estimator, X_perm, indices_to_permute, mcr_type):
+        rtn = tree_estimator.predict_vim(X_perm, indices_to_permute, mcr_type)
+            
+        if is_classifier(self):
+            # By default a sklearn RF will first convert the input classes to 0,1,2,3... etc.
+            # These will then be what the trees are trained off. I.e. y is mapped at the forest level (inputs 1,2) and trees learn and predict (0,1)
+            # Since here we are at the forest level we must map it back
+            rtn = self.classes_.take(rtn.astype(np.int64),axis=0)    
+
+        return rtn
+
+
+    
 
     def mcr(self, X_in, y_in, indices_to_permute, 
                                     num_times = 100, debug = False, debug_call = False, 
@@ -657,9 +681,11 @@ class BaseForest(MultiOutputMixin, BaseEnsemble, metaclass=ABCMeta):
         
         # for each tree make predictions for all samples using f+
         for eidx in range(n_trees):
-            per_ref_tree_preds[eidx,:] = self.estimators_[eidx].predict(X)
 
-            per_fplus_tree_preds[eidx,:] = self.estimators_[eidx].predict_vim(X_perm, indices_to_permute, mcr_type=mcr_type)
+            per_ref_tree_preds[eidx,:] = self.predict_tree(self.estimators_[eidx],X)
+            
+            
+            per_fplus_tree_preds[eidx,:] = self.predict_vim_tree(self.estimators_[eidx],X_perm, indices_to_permute, mcr_type=mcr_type)
                                                                     # predict_vim(X_perm, np.asarray([indices_to_permute[0]]), -1)
         
         # turn the predictions into either 1-0 loss or squared error with regard to the truth
@@ -1022,9 +1048,9 @@ class BaseForest(MultiOutputMixin, BaseEnsemble, metaclass=ABCMeta):
             
             # for each tree make predictions for all samples using f+
             for eidx in range(n_trees):
-                per_ref_tree_preds[eidx,:] = self.estimators_[eidx].predict(X)
+                per_ref_tree_preds[eidx,:] = self.predict_tree(self.estimators_[eidx],X)
 
-                per_fplus_tree_preds[eidx,:] = self.estimators_[eidx].predict_vim(X_perm, indices_to_permute, mcr_type=mcr_type)
+                per_fplus_tree_preds[eidx,:] = self.predict_vim_tree(self.estimators_[eidx],X_perm, indices_to_permute, mcr_type=mcr_type)
                                                                       # predict_vim(X_perm, np.asarray([indices_to_permute[0]]), -1)
             
             # turn the predictions into either 1-0 loss or squared error with regard to the truth
@@ -1316,10 +1342,7 @@ class BaseForest(MultiOutputMixin, BaseEnsemble, metaclass=ABCMeta):
         self : object
         """
 
-        if is_classifier(self):
-            if np.sum(np.asarray(y) == 0) + np.sum(np.asarray(y) == 1) != len(y):
-                print('WARNING: EXPERIMENTAL: Ouput labels for classification are not 0 or 1.')
-                #raise Exception('For classification, output labels must be either 0 or 1.') 
+        
         
         # Validate or convert input data
         if issparse(y):
