@@ -12,6 +12,7 @@
 #          Joel Nothman <joel.nothman@gmail.com>
 #          Fares Hedayati <fares.hedayati@gmail.com>
 #          Jacob Schreiber <jmschreiber91@gmail.com>
+#          Gavin Smith <gavin.smith@nottingham.ac.uk> [Surrogate extension for use in MCR]
 #
 # License: BSD 3 clause
 
@@ -341,6 +342,7 @@ cdef class BestSplitter(BaseDenseSplitter):
         cdef SIZE_t feature_offset
         cdef SIZE_t i
         cdef SIZE_t j
+        
 
         cdef SIZE_t n_visited_features = 0
         # Number of features discovered to be constant during the split search
@@ -613,7 +615,30 @@ cdef class BestSplitter(BaseDenseSplitter):
                             print('[REJECT] STAGE I: Sur: {}, Best: {}'.format(tmp_s,tmp_b))
 
                 # if the split is ok AND the variable changes across the split (i.e. we can determine the difference with this var)
-                if found_phase1 == (best.pos-start) and fabs(Xf[best.pos-1] - Xf[best.pos]) > FEATURE_THRESHOLD:
+
+############## NEW
+#                # Here we compute the agreement. The data we have is for the left node. We infer for the right as we have binary splits.
+#                # total_instances = end - start
+#                # total_left_matches = found_phase1
+#                # total_left_instances = (best.pos-start)
+#                # possible_left_matches = best.pos-start
+#               # left_agreement = found_phase1
+#               # left_mismatches =  (best.pos-start) - found_phase1
+#                # right_agreement = (end - start) - left_mismatches
+#
+#                if ( 
+#                    (
+#                    # proportion of left node correctly correctly classified
+#                    (found_phase1 / (best.pos-start)) >= SURO_RELATIVE_THRESHOLD 
+#                        # number in right - miscorrect in left # (must have equal number incorrect in right)
+#                    and ((end - start) -( (best.pos-start) - found_phase1) ) / ( (end - start) - (best.pos-start)) >= SURO_LEAF_THRESHOLD
+#                    ) or
+#                    (
+#                        (best.pos-start) - found_phase1 < SURO_ABS_THRESHOLD
+#                    )
+#                ) and fabs(Xf[best.pos-1] - Xf[best.pos]) > FEATURE_THRESHOLD:
+############## END NEW
+                if found_phase1 == (best.pos-start) and fabs(Xf[best.pos-1] - Xf[best.pos]) > FEATURE_THRESHOLD: # COMMENT OUT FOR NEW
                     # now find the threshold
                     surrogate_threshold = (Xf[best.pos-1] + Xf[best.pos])/2.0
                     found_phase1 = 1 # found
@@ -675,8 +700,28 @@ cdef class BestSplitter(BaseDenseSplitter):
                             else:
                                 print('[REJECT] STAGE II: Sur: {}, Best: {}'.format(tmp_s,tmp_b))
 
-                # if the split is ok AND the variable changes across the split (i.e. we can determine the difference with this var)
-                if found_phase2 == (best.pos-start) and fabs(Xf[(end-(best.pos-start))-1] - Xf[(end-(best.pos-start))]) > FEATURE_THRESHOLD:
+                # Here we compute the agreement. The data we have is for the left node. We infer for the right as we have binary splits.
+                # total_instances = end - start
+                # total_left_matches = found_phase2
+                # total_left_instances = (best.pos-start)
+                # possible_left_matches = best.pos-start
+                # left_agreement = found_phase1
+                # left_mismatches =  (best.pos-start) - found_phase1
+                # right_agreement = (end - start) - left_mismatches
+##### NEW
+#                if (
+#                    # proportion of left node correctly correctly classified
+#                    (found_phase2 / (best.pos-start)) >= SURO_RELATIVE_THRESHOLD 
+#                        # number in right - miscorrect in left # (must have equal number incorrect in right)
+#                    and ((end - start) -( (best.pos-start) - found_phase2) ) / ( (end - start) - (best.pos-start)) >= SURO_LEAF_THRESHOLD
+#                    ) or
+#                    (
+#                        (best.pos-start) - found_phase2 < SURO_ABS_THRESHOLD
+#                    )
+#                ) and fabs(Xf[(end-(best.pos-start))-1] - Xf[(end-(best.pos-start))]) > FEATURE_THRESHOLD:
+### END NEW
+                #if the split is ok AND the variable changes across the split (i.e. we can determine the difference with this var)
+                if found_phase2 == (best.pos-start) and fabs(Xf[(end-(best.pos-start))-1] - Xf[(end-(best.pos-start))]) > FEATURE_THRESHOLD: # COMMENT OUT FOR NEW
                     # Now find the threshold. 
                     if debug == 1:
                         with gil:

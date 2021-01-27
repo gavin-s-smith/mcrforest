@@ -973,7 +973,7 @@ cdef class Tree:
                 while node.left_child != _TREE_LEAF:
                     # ... and node.right_child != _TREE_LEAF:
                     #with gil:
-                    #    print('-------------->{}'.format(node.num_surrogates))
+                    #    print(f'Node has {node.num_surrogates} surrogates')
                   
                     do_not_flip = 1 
                     feature_to_use = node.feature
@@ -998,21 +998,24 @@ cdef class Tree:
                                     break
 
                         if found != 0:
+                            #with gil:
+                            #    print(f'feature_to_use: {feature_to_use}')
+                            #    print(f'threshold_to_use: {threshold_to_use}')
                             break
 
 
                     if do_not_flip == 1:
                         #with gil:
-                        #    if i == 0:
-                        #        print('Considering feature: {}] {} <= {}. If True: going LEFT.'.format(feature_to_use, X_ndarray[i, feature_to_use], threshold_to_use))
+                            #if i == 0:
+                            #print('Considering feature: {}] {} <= {}. If True: going LEFT.'.format(feature_to_use, X_ndarray[i, feature_to_use], threshold_to_use))
                         if X_ndarray[i, feature_to_use] <= threshold_to_use:
                             node = &self.nodes[node.left_child]
                         else:
                             node = &self.nodes[node.right_child]
                     else:
                         #with gil:
-                        #    if i == 0:
-                        #        print('Considering feature: {}] {} <= {}. If True: going RIGHT.'.format(feature_to_use, X_ndarray[i, feature_to_use], threshold_to_use))
+                            #if i == 0:
+                            #print('Considering feature: {}] {} <= {}. If True: going RIGHT.'.format(feature_to_use, X_ndarray[i, feature_to_use], threshold_to_use))
                         if X_ndarray[i, feature_to_use] <= threshold_to_use:
                             node = &self.nodes[node.right_child]
                         else:
