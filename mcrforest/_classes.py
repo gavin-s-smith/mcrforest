@@ -39,6 +39,9 @@ from sklearn.utils.multiclass import check_classification_targets
 from sklearn.utils.validation import check_is_fitted
 from sklearn.utils.validation import _deprecate_positional_args
 
+import io
+from contextlib import redirect_stdout
+
 from ._criterion import Criterion
 from ._splitter import Splitter
 from ._tree import DepthFirstTreeBuilder
@@ -47,6 +50,7 @@ from ._tree import Tree
 from ._tree import _build_pruned_tree_ccp
 from ._tree import ccp_pruning_path
 from . import _tree, _splitter, _criterion
+
 
 __all__ = ["DecisionTreeClassifier",
            "DecisionTreeRegressor",
@@ -460,7 +464,12 @@ class BaseDecisionTree(MultiOutputMixin, BaseEstimator, metaclass=ABCMeta):
         if is_classifier(self):
             print('Probabily table to class mapping: {}'.format( self.classes_) )
         self.tree_.print_tree(col_names)
-
+    
+    def get_tree_as_str(self, col_names):
+        with io.StringIO() as buf, redirect_stdout(buf):
+            self.tree_.print_tree(col_names)
+            rtn = buf.getvalue()
+        return rtn
 
     def predict_vim_from_parallel_fn(self, D, check_input=True):
         X = D[0]
@@ -491,6 +500,11 @@ class BaseDecisionTree(MultiOutputMixin, BaseEstimator, metaclass=ABCMeta):
         y : array-like of shape (n_samples,) or (n_samples, n_outputs)
             The predicted classes, or the predict values.
         """
+
+        # check = self.get_tree_as_str(col_names = ['C','D','B','A'])
+        # if 'f_idx: C [(D <= 0.5)] x <= 0.5' in check and 'f_idx: B [(A <= 0.5)] x <= 0.5' in check and 'f_idx: B [(A > 0.5)] x <= 0.5' in check:
+        #     print('start debug')
+
         check_is_fitted(self)
         X = self._validate_X_predict(X, check_input)
         if type(mcr_type) == int:

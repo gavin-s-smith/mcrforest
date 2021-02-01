@@ -67,6 +67,9 @@ from sklearn.metrics import mean_squared_error, mean_absolute_error
 from itertools import permutations
 import copy
 import pandas as pd
+from tqdm import tqdm
+import io
+from contextlib import redirect_stdout
 
 __all__ = ["RandomForestClassifier",
            "RandomForestRegressor",
@@ -74,7 +77,10 @@ __all__ = ["RandomForestClassifier",
            "ExtraTreesRegressor",
            "RandomTreesEmbedding"]
 
+
 MAX_INT = np.iinfo(np.int32).max
+
+
 
 
 def _get_n_samples_bootstrap(n_samples, max_samples):
@@ -248,6 +254,36 @@ class BaseForest(MultiOutputMixin, BaseEnsemble, metaclass=ABCMeta):
         self.estimators_p = {}
         self.new_tree_equivilents_m = {}
         self.new_tree_equivilents_p = {}
+        self.estimators_history = []
+        self.human_readable_history = []
+        self.mcr_history = []
+        self.mcr_cache= {}
+
+
+
+    def print_unique_trees(self, col_names, indices2print = None):
+        
+        unique_trees_as_str = set()
+
+        if is_classifier(self.estimators_[0]):
+            print('Probabily table to class mapping: {}'.format( self.estimators_[0].classes_) )
+        
+        print("Printing unique trees..")
+        
+        for i,e in enumerate(self.estimators_):
+            if not indices2print is None:
+                if not i in indices2print:
+                    continue
+
+            with io.StringIO() as buf, redirect_stdout(buf):
+                
+                e.tree_.print_tree(col_names)
+                unique_trees_as_str.add(buf.getvalue())
+        
+        for t in unique_trees_as_str:
+            print(t)
+
+
 
     def print_trees(self, col_names, indices2print = None):
 
@@ -282,18 +318,56 @@ class BaseForest(MultiOutputMixin, BaseEnsemble, metaclass=ABCMeta):
             return predictions
 
 
+    def undo_mcr_step(self, verbose = 0):
+        """
+        Returns the human readable step that was undone.
+        """
+        if len(self.estimators_history) == 0:
+            print('Nothing to undo.')
+            return None
+        
+        self.estimators_ = self.estimators_history.pop()
 
-    def set_estimators(self, force_use, var_index, debug = True ):
+        rtn = self.human_readable_history.pop()
+        
+        if verbose > 0:
+            print(f'Undid step: {rtn}')
+            print(f'Current history: {"-->".join(self.human_readable_history)}')
+
+        return rtn
+
+
+    def get_mcr_state(self):
+
+        return f'-->{",".join(self.human_readable_history)}'
+
+    def set_mcr_state(self, force_use, var_indexs, debug = True, verbose = 0 ):
+        
+        if not isinstance(var_indexs, np.ndarray):
+            raise Exception(f'var_indexes is expected to be a numpy array, was {var_indexs} of type(var_indexs): {type(var_indexs)}')
+        
+        for l in var_indexs:
+            self.mcr_history.append( [l, force_use] )
+
+        self.estimators_history.append( self.estimators_.copy() )
+        if force_use:
+            self.human_readable_history.append( f'USE({var_indexs})' )
+        else:
+           self.human_readable_history.append( f'AVOID({var_indexs})' ) 
 
         if debug:
-            print(f' set_estimators(self, force_use = {force_use}, var_index = {var_index}, debug = True )')
+            print(f' set_estimators(self, force_use = {force_use}, var_indexs = {var_indexs}, debug = True )')
 
         if force_use:
-            self.estimators_ = self.estimators_p[var_index].copy()
-            self.forest_equivilents = self.new_tree_equivilents_p[var_index].copy()
+            self.estimators_ = self.estimators_p[str(var_indexs)].copy()
+            self.forest_equivilents = self.new_tree_equivilents_p[str(var_indexs)].copy()
         else:
-            self.estimators_ = self.estimators_m[var_index].copy()
-            self.forest_equivilents = self.new_tree_equivilents_m[var_index].copy()
+            self.estimators_ = self.estimators_m[str(var_indexs)].copy()
+            self.forest_equivilents = self.new_tree_equivilents_m[str(var_indexs)].copy()
+        
+        if verbose > 0:
+            print(f'Did step: {self.human_readable_history[-1]}')
+            print(f'Current history: {"-->".join(self.human_readable_history)}')
 
 
     def predict_tree(self, tree_estimator, X ):
@@ -323,7 +397,7 @@ class BaseForest(MultiOutputMixin, BaseEnsemble, metaclass=ABCMeta):
 
     def mcr(self, X_in, y_in, indices_to_permute, 
                                     num_times = 100, debug = False, debug_call = False, debug_trees = None,
-                                    mcr_type = 1, mcr_ordering = None, restrict_trees_to = None, mcr_as_ratio = False, seed = 13111985, 
+                                    mcr_type = 1, restrict_trees_to = None, mcr_as_ratio = False, seed = 13111985, 
                                     enable_Tplus_transform = True
                                     ):
         """ Computes MCR+ or MCR-
@@ -350,8 +424,6 @@ class BaseForest(MultiOutputMixin, BaseEnsemble, metaclass=ABCMeta):
             If not None, then the array must be the column names for X_in. Trees will be printed based on this information along with other debug information for each tree.
         mcr_type: int [-1 or 1]
             For MCR+: 1, for MCR-: -1
-        mcr_ordering: numpy.array
-                    a 1D numpy array of input variable indices indicating which variables must be used before others (Left to Right in the array)
         restrict_trees_to: int
                 If not None, only use the first n trees in the reference forest. 
         mcr_as_ratio: bool
@@ -366,10 +438,32 @@ class BaseForest(MultiOutputMixin, BaseEnsemble, metaclass=ABCMeta):
                                   See G. SMITH, R. MANSILLA and J. GOULDING, 2020. Model Class Reliance for Random Forests. In 34th Conference on Neural Information Processing Systems (NeurIPS 2020), Vancouver, Canada
         """
 
+
+        
+        is_classification = is_classifier(self)
+
+        if not isinstance(y_in, np.ndarray):
+            raise Exception('y_in must be a numpy array')
+        if not len(y_in.shape) == 1:
+            raise Exception('y_in must be a 1D numpy array')
+
+        if mcr_type == 1:
+            mcr_plus = True
+        elif mcr_type == -1:
+            mcr_plus = False
+        else:
+            raise Exception(f'mcr_type must be either 1 or -1, was: {mcr_type}')
+        
+        #mcr_ordering: numpy.array
+        #            a 1D numpy array of input variable indices indicating which variables must be used before others (Left to Right in the array)
+
+        mcr_ordering = self.compute_mcr_order_list( X_in.shape[1], indices_to_permute, mcr_plus )
+
+        #print(f'mcr_ordering: {mcr_ordering}')
+
         if debug_call:
             print(f'mcr(self, X_in, y_in, indices_to_permute = {indices_to_permute}, num_times = {num_times}, mcr_type = {mcr_type}, mcr_ordering = {mcr_ordering}, seed = {seed}, ...')
 
-        is_classification = is_classifier(self)
 
         # if (windows) passes an int32 who cares, we'll just upgrade it to int64 for the cython code. If we don't have integers though, throw an exception
         if not indices_to_permute.dtype.kind in np.typecodes["AllInteger"]:
@@ -413,10 +507,10 @@ class BaseForest(MultiOutputMixin, BaseEnsemble, metaclass=ABCMeta):
         # NOTE: This is slightly different to V1, as the truffle shuffle (tree shuffle) is done only once based on the overall MDA
         #       not for each permtation. This change is required to realize a specific instance of a forest at the end.
 
-        for i_num_times in range(num_times):
-            # Make a copy of X and permute
-            X_perm = np.tile(X_in, (num_times,1) )
-            X = np.tile(X_in, (num_times,1) )
+        #for i_num_times in range(num_times):
+        # Make a copy of X and permute
+        X_perm = np.tile(X_in, (num_times,1) )
+        X = np.tile(X_in, (num_times,1) )
     
         for i_permidx in indices_to_permute:
             np.random.shuffle(X_perm[:, i_permidx])
@@ -429,15 +523,35 @@ class BaseForest(MultiOutputMixin, BaseEnsemble, metaclass=ABCMeta):
         per_ref_tree_preds = np.ones([n_trees, n_samples])*-9999
         
         # for each tree make predictions for all samples using f+
-        for eidx in range(n_trees):
 
+
+
+
+        def collate_parallel( eidx ):
+            # x [0] is the id
             per_ref_tree_preds[eidx,:] = self.predict_tree(self.estimators_[eidx],X)
-            
+    
             if mcr_ordering is None:
                 per_fplus_tree_preds[eidx,:] = self.predict_vim_tree(self.estimators_[eidx],X_perm, indices_to_permute, mcr_type=mcr_type)
             else:
                 per_fplus_tree_preds[eidx,:] = self.predict_vim_tree(self.estimators_[eidx],X_perm, indices_to_permute, mcr_type=mcr_ordering)
-            
+
+        if self.n_jobs is None or self.n_jobs == 1:
+
+            for eidx in range(n_trees):
+                
+                
+
+                per_ref_tree_preds[eidx,:] = self.predict_tree(self.estimators_[eidx],X)
+                
+                if mcr_ordering is None:
+                    per_fplus_tree_preds[eidx,:] = self.predict_vim_tree(self.estimators_[eidx],X_perm, indices_to_permute, mcr_type=mcr_type)
+                else:
+                    per_fplus_tree_preds[eidx,:] = self.predict_vim_tree(self.estimators_[eidx],X_perm, indices_to_permute, mcr_type=mcr_ordering)
+        
+        else:
+            Parallel(n_jobs=self.n_jobs, verbose=self.verbose, **_joblib_parallel_args(require="sharedmem"))(delayed(collate_parallel)(eidx) for eidx in range(n_trees))
+                
                                                                     # predict_vim(X_perm, np.asarray([indices_to_permute[0]]), -1)
         
         # turn the predictions into either 1-0 loss or squared error with regard to the truth
@@ -552,16 +666,22 @@ class BaseForest(MultiOutputMixin, BaseEnsemble, metaclass=ABCMeta):
         #     print('p')
         
         # store the 
-        if len(indices_to_permute) == 1:
-            if mcr_type < 0:
-                self.estimators_m[indices_to_permute[0]] = np.asarray(real_estimators_)[new_trees_indexes]
-                self.new_tree_equivilents_m[indices_to_permute[0]] = np.copy(new_tree_equivilents)
-            else:
-                self.estimators_p[indices_to_permute[0]] = np.asarray(real_estimators_)[new_trees_indexes]
-                self.new_tree_equivilents_p[indices_to_permute[0]] = np.copy(new_tree_equivilents)
+        # if len(indices_to_permute) == 1:
+        #     if mcr_type < 0:
+        #         self.estimators_m[indices_to_permute[0]] = np.asarray(real_estimators_)[new_trees_indexes]
+        #         self.new_tree_equivilents_m[indices_to_permute[0]] = np.copy(new_tree_equivilents)
+        #     else:
+        #         self.estimators_p[indices_to_permute[0]] = np.asarray(real_estimators_)[new_trees_indexes]
+        #         self.new_tree_equivilents_p[indices_to_permute[0]] = np.copy(new_tree_equivilents)
+        # else:
+        #     print('WANRING: CURRENTLY FOR v2: len(indices_to_permute) > 1 IS EXPERIMENTAL ')
+        if mcr_type < 0:
+            self.estimators_m[str(indices_to_permute)] = np.asarray(real_estimators_)[new_trees_indexes]
+            self.new_tree_equivilents_m[str(indices_to_permute)] = np.copy(new_tree_equivilents)
         else:
-            raise Exception('CURRENTLY FOR v2: len(indices_to_permute) == 1 MUST BE TRUE ')
-        
+            #print(f'Setting: self.estimators_p[str(indices_to_permute)]: {str(indices_to_permute)}')
+            self.estimators_p[str(indices_to_permute)] = np.asarray(real_estimators_)[new_trees_indexes]
+            self.new_tree_equivilents_p[str(indices_to_permute)] = np.copy(new_tree_equivilents)
 
         # Check if we are still in the Rashomon set
         new_forest_orig_data_score = forest_scorer(X)
@@ -628,7 +748,52 @@ class BaseForest(MultiOutputMixin, BaseEnsemble, metaclass=ABCMeta):
 
         return np.mean(acc_set_sur_and_truffle)
 
-    def plot_mcr(self,X_in, y_in, feature_names = None, feature_groups_of_interest = 'all individual features', num_times = 100, show_fig = True):
+    def compute_mcr_order_list(self, total_num_features, indexes_of_interest, mcr_plus):
+        
+        must_use_variable_ordering = []
+        
+        # all variable not in history or the current variable
+        all_other_vars_as_list = []
+        for jidx in range(total_num_features):
+            if jidx not in indexes_of_interest and jidx not in [item[0] for item in self.mcr_history]: 
+                all_other_vars_as_list.append( jidx )
+
+        # For MCR-/+ Build must_use_variable_ordering for this variable and the history
+        for e in self.mcr_history:
+            if e[1] == True: # must use
+                must_use_variable_ordering.append(e[0])
+
+        if mcr_plus:
+        
+            if all([x not in [x[0] for x in self.mcr_history] for x in indexes_of_interest]): # if the variable of interest is already in the history it has it's fixed place in the must_use_variable_ordering
+                for index in indexes_of_interest:
+                    must_use_variable_ordering.append(index)
+            elif any([x not in [x[0] for x in self.mcr_history] for x in indexes_of_interest]):
+                raise Exception('Grouped variables cannot partially appear in the history, but somehow have.')
+
+            must_use_variable_ordering += all_other_vars_as_list
+        else:
+            must_use_variable_ordering += all_other_vars_as_list
+
+            if all([x not in [x[0] for x in self.mcr_history] for x in indexes_of_interest]): # if the variable of interest is already in the history it has it's fixed place in the must_use_variable_ordering
+                for index in indexes_of_interest:
+                    must_use_variable_ordering.append(index)
+            elif any([x not in [x[0] for x in self.mcr_history] for x in indexes_of_interest]):
+                raise Exception('Grouped variables cannot partially appear in the history, but somehow have.')
+
+
+        for e in self.mcr_history[::-1]:
+            if e[1] == False: 
+                must_use_variable_ordering.append(e[0]) # append variable you want to avoid using
+
+        # convert must_use_variable_ordering into a 1D numpy array to run mcr_ordering
+        must_use_variable_ordering = np.array(must_use_variable_ordering)
+        
+        return must_use_variable_ordering
+        
+
+
+    def plot_mcr(self,X_in, y_in, feature_names = None, feature_groups_of_interest = 'all individual features', num_times = 100, show_fig = True, use_cache = False):
             
         """
         Compute the required information for an MCR plot and optionally display the MCR plot.
@@ -650,7 +815,8 @@ class BaseForest(MultiOutputMixin, BaseEnsemble, metaclass=ABCMeta):
                 The number of permutations to use when computing the MCR.
         show_fig : bool
                 If True show the MCR graph. In either case a dataframe with the information that would have been shown in the graph is returned.
-
+        use_cache: bool
+                If True save the resulting MCR frame to the variable self.mcr_cache using the USE/AVOID human readable history string.
         Returns
         -------
         rf_results2 : {pandas DataFrame} of shape (2*[number_of_features OR len(feature_groups_of_interest)], 3)
@@ -681,22 +847,45 @@ class BaseForest(MultiOutputMixin, BaseEnsemble, metaclass=ABCMeta):
                 groups_of_indicies_to_permute = [[x] for x in range(len(feature_names))]
             else:
                 raise Exception('feature_groups_of_interest incorrectly specified. If not specifying to use all individual features via "all individual features" you must pass a numpy array of numpy arrays. See the documentation on github.')
-        elif not isinstance(feature_groups_of_interest, np.array):
-            raise Exception('feature_groups_of_interest incorrectly specified. If not specifying to use all individual features via "all individual features" you must pass a numpy array of numpy arrays. See the documentation on github.')
+        elif len(feature_groups_of_interest) != len(feature_names):
+            raise Exception(f'The wrong number of feature names were provided. len(feature_groups_of_interest): {len(feature_groups_of_interest)} != len(feature_names) {len(feature_names)}')
         
+        elif isinstance(feature_groups_of_interest[0], str) or isinstance(feature_groups_of_interest[0][0], str):
+            # we need to convert the feature groups to index groups
+            if not isinstance(X_in, pd.DataFrame):
+                raise Exception('You can only pass variable names for grouping if you pass the data as a dataframe. X was not a dataframe.')
+            X_cols = X_in.columns.tolist()
+            fgi = []
+
+            if isinstance(feature_groups_of_interest[0], str):
+                for iat in feature_groups_of_interest:
+                    fgi.append(X_cols.index(iat))
+            else:
+                for iat in feature_groups_of_interest:
+                    tmp = []
+                    for jat in iat:
+                        tmp.append(X_cols.index(jat))
+                    fgi.append(tmp)
+            
+            groups_of_indicies_to_permute = fgi
+        else:
+            groups_of_indicies_to_permute = feature_groups_of_interest
         
         # New MCR+ perm imp
         print('Processing MCR+ groups of features.')
+        gp_idx = 0
         for gp in tqdm(groups_of_indicies_to_permute):
             rn = self.mcr(X,y, np.asarray(gp) ,  num_times = num_times, mcr_type = 1)
-            results.append([','.join([feature_names[x] for x in gp]), 'RF-MCR+', rn])
-
+            results.append([feature_names[gp_idx], 'RF-MCR+', rn])
+            gp_idx += 1
 
         # New MCR- perm imp
         print('Processing MCR- groups of features.')
+        gp_idx = 0
         for gp in tqdm(groups_of_indicies_to_permute):
             rn = self.mcr(X,y, np.asarray(gp) ,  num_times = num_times,  mcr_type = -1)
-            results.append([','.join([feature_names[x] for x in gp]), 'RF-MCR-', rn])
+            results.append([feature_names[gp_idx], 'RF-MCR-', rn])
+            gp_idx += 1
 
         lbl = [ x[0] for x in results if 'MCR+' in x[1] ]
         mcrp = [ x[2] for x in results if 'MCR+' in x[1] ]
@@ -704,7 +893,7 @@ class BaseForest(MultiOutputMixin, BaseEnsemble, metaclass=ABCMeta):
 
         print('MCR+ sum: {}'.format(sum(mcrp)))
 
-        rf_results2 = pd.DataFrame({'variable':lbl, 'MCR+':mcrp, 'MCR-':mcrm})
+        rf_results2 = pd.DataFrame({'variable':lbl, 'MCR-':mcrm, 'MCR+':mcrp })
 
         import seaborn as sns
         import matplotlib.pyplot as plt
@@ -720,6 +909,9 @@ class BaseForest(MultiOutputMixin, BaseEnsemble, metaclass=ABCMeta):
         plot_mcr(rf_results2)
         if show_fig:
             plt.show()
+
+        if use_cache:
+            self.mcr_cache[f'-->{",".join(self.human_readable_history)}'] = rf_results2
 
         return rf_results2
 
