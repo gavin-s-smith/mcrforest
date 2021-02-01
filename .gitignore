@@ -26,4 +26,6 @@ compas_y.csv
 compas_train_indices.csv
 
 *.csv
+*.csv*
+test_*
 Wen.py
