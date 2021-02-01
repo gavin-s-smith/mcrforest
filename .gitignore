@@ -25,6 +25,9 @@ compas_X.csv
 compas_y.csv
 compas_train_indices.csv
 
+.vscode
+.ipynb_checkpoints
+
 *.csv
 *.csv*
 test_*
