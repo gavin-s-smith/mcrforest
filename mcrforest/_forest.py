@@ -391,6 +391,21 @@ class BaseForest(MultiOutputMixin, BaseEnsemble, metaclass=ABCMeta):
             # for each tree we will predict all samples and store them here
             per_fplus_tree_preds = np.ones([n_trees, n_samples])*-9999
             per_ref_tree_preds = np.ones([n_trees, n_samples])*-9999
+
+
+            def collate_parallel( eidx ):
+                per_ref_tree_preds[eidx,:] = self.predict_tree(self.estimators_[eidx],X)
+                per_fplus_tree_preds[eidx,:] = self.predict_vim_tree(self.estimators_[eidx],X_perm, indices_to_permute, mcr_type=mcr_type)
+
+            if self.n_jobs is None or self.n_jobs == 1:
+
+                for eidx in range(n_trees):
+                    per_ref_tree_preds[eidx,:] = self.predict_tree(self.estimators_[eidx],X)
+                    per_fplus_tree_preds[eidx,:] = self.predict_vim_tree(self.estimators_[eidx],X_perm, indices_to_permute, mcr_type=mcr_type)
+            
+            else:
+                Parallel(n_jobs=self.n_jobs, verbose=self.verbose, **_joblib_parallel_args(require="sharedmem"))(delayed(collate_parallel)(eidx) for eidx in range(n_trees))
+            
             
             # for each tree make predictions for all samples using f+
             for eidx in range(n_trees):
