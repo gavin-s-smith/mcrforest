@@ -109,6 +109,8 @@ rf_cv_model.fit(X_train,y_train)
 # Refit a RandomForest from the mcrforest package with best parameters (see note above)
 model = mcrRandomForestRegressor( **rf_cv_model.best_params_ )
 
+model.fit(X_train, y_train)
+
 model.plot_mcr(X_train, y_train)
 
 ```
