@@ -98,7 +98,7 @@ y_train = pd.read_csv('y_train.csv')
 # permutation importance.
 # See: https://christophm.github.io/interpretable-ml-book/feature-importance.html
 
-# Determine the best meta-parameters using the sklearn Random Forest
+# Determine the best meta-parameters using the sklearn Random Forest (see note above, could equally use the RandomForest from the mcrforest package)
 base_model = sklearnRandomForestRegressor(random_state = 13111985, bootstrap=False)
 
 search = {'n_estimators':[500],'max_features':['auto'], 'max_depth':[5,10,15,20,30]}
@@ -106,7 +106,7 @@ search = {'n_estimators':[500],'max_features':['auto'], 'max_depth':[5,10,15,20,
 rf_cv_model = GridSearchCV(base_model, search)
 rf_cv_model.fit(X_train,y_train)
 
-# Refit with best parameters
+# Refit a RandomForest from the mcrforest package with best parameters (see note above)
 model = mcrRandomForestRegressor( **rf_cv_model.best_params_ )
 
 model.plot_mcr(X_train, y_train)
