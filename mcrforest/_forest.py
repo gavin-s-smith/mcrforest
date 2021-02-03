@@ -381,8 +381,8 @@ class BaseForest(MultiOutputMixin, BaseEnsemble, metaclass=ABCMeta):
 
         return rtn
     
-    def predict_vim_tree(self, tree_estimator, X_perm, indices_to_permute, mcr_type):
-        rtn = tree_estimator.predict_vim(X_perm, indices_to_permute, mcr_type)
+    def predict_vim_tree(self, tree_estimator, X_perm, indices_to_permute, mcr_ordering_pre, mcr_ordering_others, mcr_ordering_post):
+        rtn = tree_estimator.predict_vim(X_perm, indices_to_permute, mcr_ordering_pre, mcr_ordering_others, mcr_ordering_post)
             
         if is_classifier(self):
             # By default a sklearn RF will first convert the input classes to 0,1,2,3... etc.
@@ -457,7 +457,9 @@ class BaseForest(MultiOutputMixin, BaseEnsemble, metaclass=ABCMeta):
         #mcr_ordering: numpy.array
         #            a 1D numpy array of input variable indices indicating which variables must be used before others (Left to Right in the array)
 
-        mcr_ordering = self.compute_mcr_order_list( X_in.shape[1], indices_to_permute, mcr_plus )
+        #mcr_ordering = self.compute_mcr_order_list( X_in.shape[1], indices_to_permute, mcr_plus )
+
+        mcr_ordering_pre, mcr_ordering_others, mcr_ordering_post = self.compute_mcr_order_list_pre_others_post( X_in.shape[1], indices_to_permute, mcr_plus )
 
         #print(f'mcr_ordering: {mcr_ordering}')
 
@@ -531,10 +533,7 @@ class BaseForest(MultiOutputMixin, BaseEnsemble, metaclass=ABCMeta):
             # x [0] is the id
             per_ref_tree_preds[eidx,:] = self.predict_tree(self.estimators_[eidx],X)
     
-            if mcr_ordering is None:
-                per_fplus_tree_preds[eidx,:] = self.predict_vim_tree(self.estimators_[eidx],X_perm, indices_to_permute, mcr_type=mcr_type)
-            else:
-                per_fplus_tree_preds[eidx,:] = self.predict_vim_tree(self.estimators_[eidx],X_perm, indices_to_permute, mcr_type=mcr_ordering)
+            per_fplus_tree_preds[eidx,:] = self.predict_vim_tree(self.estimators_[eidx],X_perm, indices_to_permute, mcr_ordering_pre, mcr_ordering_others, mcr_ordering_post)
 
         if self.n_jobs is None or self.n_jobs == 1:
 
@@ -544,15 +543,12 @@ class BaseForest(MultiOutputMixin, BaseEnsemble, metaclass=ABCMeta):
 
                 per_ref_tree_preds[eidx,:] = self.predict_tree(self.estimators_[eidx],X)
                 
-                if mcr_ordering is None:
-                    per_fplus_tree_preds[eidx,:] = self.predict_vim_tree(self.estimators_[eidx],X_perm, indices_to_permute, mcr_type=mcr_type)
-                else:
-                    per_fplus_tree_preds[eidx,:] = self.predict_vim_tree(self.estimators_[eidx],X_perm, indices_to_permute, mcr_type=mcr_ordering)
+                per_fplus_tree_preds[eidx,:] = self.predict_vim_tree(self.estimators_[eidx],X_perm, indices_to_permute, mcr_ordering_pre, mcr_ordering_others, mcr_ordering_post)
         
         else:
             Parallel(n_jobs=self.n_jobs, verbose=self.verbose, **_joblib_parallel_args(require="sharedmem"))(delayed(collate_parallel)(eidx) for eidx in range(n_trees))
                 
-                                                                    # predict_vim(X_perm, np.asarray([indices_to_permute[0]]), -1)
+                                                                   
         
         # turn the predictions into either 1-0 loss or squared error with regard to the truth
         if is_classification:
@@ -629,18 +625,15 @@ class BaseForest(MultiOutputMixin, BaseEnsemble, metaclass=ABCMeta):
         
         #print(new_trees_indexes)
         #print(new_tree_equivilents)
-        if mcr_ordering is None:
-            mcr_indicator = mcr_type
-        else:
-            mcr_indicator = mcr_ordering
+        
                 
         if is_classification:
-            forest_scorer = lambda x: np.mean(self.predict_vim(x,indices_to_permute,mcr_indicator)==y)
+            forest_scorer = lambda x: np.mean(self.predict_vim(x,indices_to_permute,mcr_ordering_pre, mcr_ordering_others, mcr_ordering_post)==y)
         else:
             if self.get_params()['criterion'] == 'mse':
-                forest_scorer = lambda x: np.mean( (self.predict_vim(x,indices_to_permute,mcr_indicator)-y)**2 )
+                forest_scorer = lambda x: np.mean( (self.predict_vim(x,indices_to_permute,mcr_ordering_pre, mcr_ordering_others, mcr_ordering_post)-y)**2 )
             else:
-                forest_scorer = lambda x: np.mean( np.abs(self.predict_vim(x,indices_to_permute,mcr_indicator)-y) )
+                forest_scorer = lambda x: np.mean( np.abs(self.predict_vim(x,indices_to_permute,mcr_ordering_pre, mcr_ordering_others, mcr_ordering_post)-y) )
 
         if is_classification:
             forest_scorer_reference_model = lambda x: np.mean(self.predict(x)==y)
@@ -726,17 +719,7 @@ class BaseForest(MultiOutputMixin, BaseEnsemble, metaclass=ABCMeta):
                 acc_set_ref_model.append(forest_scorer_reference_model(X_perm) - forest_scorer_reference_model(X) )
 
             
-            # print('T0(X_perm) = {}'.format( np.mean((self.estimators_[0].predict_vim(X_perm, np.asarray([indices_to_permute[0]]), -1) - y)**2)) ) 
-            # print('T1(X_perm) = {}'.format( np.mean((self.estimators_[1].predict_vim(X_perm, np.asarray([indices_to_permute[0]]), -1) - y)**2)) ) 
-
-            # print('T[0,1](X_perm) = {}'.format( np.mean((self.predict_vim(X_perm, np.asarray([indices_to_permute[0]]), -1) - y)**2)) ) 
-            # self.estimators_ = np.asarray(real_estimators_)[new_trees_indexes]
-            # print('T{}(X_perm) = {}'.format( new_trees_indexes, np.mean((self.predict_vim(X_perm, np.asarray([indices_to_permute[0]]), -1) - y)**2)) ) 
-            # self.estimators_ = real_estimators_
-        
-        #if (np.asarray(acc_set_sur_and_truffle) +  < 0).any() or (np.asarray(acc_set_sur_only)<0).any() or (np.asarray(acc_set_ref_model)<0).any():
-            
-        #    raise Exception('SHOULD NOT HAPPEN lsdajf23lkjd')
+   
 
 
         if debug:
@@ -792,6 +775,58 @@ class BaseForest(MultiOutputMixin, BaseEnsemble, metaclass=ABCMeta):
         return must_use_variable_ordering
         
 
+    def compute_mcr_order_list_pre_others_post(self, total_num_features, indexes_of_interest, mcr_plus):    
+        
+        must_use_variable_ordering = []
+
+        pre = []
+        others = []
+        post = []
+        
+        # all variable not in history or the current variable
+        all_other_vars_as_list = []
+        for jidx in range(total_num_features):
+            if jidx not in indexes_of_interest and jidx not in [item[0] for item in self.mcr_history]: 
+                all_other_vars_as_list.append( jidx )
+
+        # For MCR-/+ Build must_use_variable_ordering for this variable and the history
+        for e in self.mcr_history:
+            if e[1] == True: # must use
+                must_use_variable_ordering.append(e[0])
+
+        if mcr_plus:
+        
+            if all([x not in [x[0] for x in self.mcr_history] for x in indexes_of_interest]): # if the variable of interest is already in the history it has it's fixed place in the must_use_variable_ordering
+                for index in indexes_of_interest:
+                    must_use_variable_ordering.append(index)
+            elif any([x not in [x[0] for x in self.mcr_history] for x in indexes_of_interest]):
+                raise Exception('Grouped variables cannot partially appear in the history, but somehow have.')
+
+            pre = must_use_variable_ordering
+            others = all_other_vars_as_list
+
+            #must_use_variable_ordering += all_other_vars_as_list
+        else:
+            pre = must_use_variable_ordering
+            others = all_other_vars_as_list
+            #must_use_variable_ordering += all_other_vars_as_list
+            post = []
+
+            if all([x not in [x[0] for x in self.mcr_history] for x in indexes_of_interest]): # if the variable of interest is already in the history it has it's fixed place in the must_use_variable_ordering
+                for index in indexes_of_interest:
+                    post.append(index)
+            elif any([x not in [x[0] for x in self.mcr_history] for x in indexes_of_interest]):
+                raise Exception('Grouped variables cannot partially appear in the history, but somehow have.')
+
+
+        for e in self.mcr_history[::-1]:
+            if e[1] == False: 
+                post.append(e[0]) # append variable you want to avoid using
+
+        # convert must_use_variable_ordering into a 1D numpy array to run mcr_ordering
+        #must_use_variable_ordering = np.array(must_use_variable_ordering)
+        
+        return np.asarray(pre, dtype = np.int64), np.asarray(others, dtype = np.int64), np.asarray(post, dtype = np.int64)
 
     def plot_mcr(self,X_in, y_in, feature_names = None, feature_groups_of_interest = 'all individual features', num_times = 100, show_fig = True, use_cache = False):
             
@@ -835,7 +870,7 @@ class BaseForest(MultiOutputMixin, BaseEnsemble, metaclass=ABCMeta):
                 feature_names = ['f_{}'.format(i) for i in range(X.shape[1])]
 
         
-        if isinstance(y_in, pd.DataFrame): 
+        if isinstance(y_in, pd.DataFrame) or isinstance(y_in, pd.core.series.Series): 
             y = y_in.values
         else:
             y = y_in
@@ -898,7 +933,7 @@ class BaseForest(MultiOutputMixin, BaseEnsemble, metaclass=ABCMeta):
         import seaborn as sns
         import matplotlib.pyplot as plt
 
-        def plot_mcr(df_in, fig_size = (11.7, 8.27)):
+        def plot_mcr_graph(df_in, fig_size = (11.7, 8.27)):
             df_in = df_in.copy()
             df_in.columns = [ x.replace('MCR+', 'MCR- (lollypops) | MCR+ (bars)') for x in df_in.columns]
             ax = sns.barplot(x='MCR- (lollypops) | MCR+ (bars)',y='variable',data=df_in)
@@ -906,7 +941,7 @@ class BaseForest(MultiOutputMixin, BaseEnsemble, metaclass=ABCMeta):
             plt.hlines(y=range(df_in.shape[0]), xmin=0, xmax=df_in['MCR-'], color='skyblue')
             plt.plot(df_in['MCR-'], range(df_in.shape[0]), "o", color = 'skyblue')
 
-        plot_mcr(rf_results2)
+        plot_mcr_graph(rf_results2)
         if show_fig:
             plt.show()
 
@@ -1182,12 +1217,15 @@ class BaseForest(MultiOutputMixin, BaseEnsemble, metaclass=ABCMeta):
                 a = mean_squared_error(y, t.predict(X))
             
             for i in range( X.shape[1] ):
-                # if tidx==3 and i == 2:
-                #     print('p')
+                
+                mcr_ordering_pre = np.asarray([i], dtype = np.int64)
+                mcr_ordering_others = np.asarray([ x for x in range(X.shape[1]) if x != i], dtype = np.int64)
+                mcr_ordering_post = np.asarray([], dtype = np.int64)
+
                 if is_classifier(self):
-                    b = accuracy_score(y, t.predict_vim(X,np.asarray([i], dtype=np.int64), 1))
+                    b = accuracy_score(y, t.predict_vim(X,np.asarray([i], dtype=np.int64), mcr_ordering_pre, mcr_ordering_others, mcr_ordering_post))
                 else:
-                    b = mean_squared_error(y, t.predict_vim(X,np.asarray([i], dtype=np.int64), 1))
+                    b = mean_squared_error(y, t.predict_vim(X,np.asarray([i], dtype=np.int64), mcr_ordering_pre, mcr_ordering_others, mcr_ordering_post))
                 
                 #b = mean_squared_error(y[5], t.predict_vim(X[5,:].reshape(1,-1),np.asarray([i]), 1))
                 #c = mean_squared_error(y, t.predict_vim(X,np.asarray([i], dtype=np.int64), -1))
@@ -1524,7 +1562,7 @@ class ForestClassifier(ClassifierMixin, BaseForest, metaclass=ABCMeta):
             return predictions
 
 
-    def predict_vim(self, X, permuated_vars, mcr_type):
+    def predict_vim(self, X, permuated_vars, mcr_ordering_pre, mcr_ordering_others, mcr_ordering_post ):
         """
         Predict class for X.
 
@@ -1546,7 +1584,7 @@ class ForestClassifier(ClassifierMixin, BaseForest, metaclass=ABCMeta):
             The predicted classes.
         """
         
-        proba = self.predict_proba_vim(X,permuated_vars, mcr_type)
+        proba = self.predict_proba_vim(X,permuated_vars, mcr_ordering_pre, mcr_ordering_others, mcr_ordering_post )
 
         if self.n_outputs_ == 1:
             return self.classes_.take(np.argmax(proba, axis=1), axis=0)
@@ -1615,7 +1653,7 @@ class ForestClassifier(ClassifierMixin, BaseForest, metaclass=ABCMeta):
         else:
             return all_proba
 
-    def predict_proba_vim(self, X,permuted_vars, mcr_type):
+    def predict_proba_vim(self, X,permuted_vars, mcr_ordering_pre, mcr_ordering_others, mcr_ordering_post ):
         """
         Predict class probabilities for X.
 
@@ -1652,7 +1690,7 @@ class ForestClassifier(ClassifierMixin, BaseForest, metaclass=ABCMeta):
         lock = threading.Lock()
         Parallel(n_jobs=n_jobs, verbose=self.verbose,
                  **_joblib_parallel_args(require="sharedmem"))(
-            delayed(_accumulate_prediction)(e.predict_proba_vim, (X,permuted_vars, mcr_type), all_proba,
+            delayed(_accumulate_prediction)(e.predict_proba_vim, (X,permuted_vars, mcr_ordering_pre, mcr_ordering_others, mcr_ordering_post ), all_proba,
                                             lock)
             for e in self.estimators_)
 
@@ -1737,7 +1775,7 @@ class ForestRegressor(RegressorMixin, BaseForest, metaclass=ABCMeta):
 
   
 
-    def predict_vim(self, X, permuted_indices, mcr_type):
+    def predict_vim(self, X, permuted_indices, mcr_ordering_pre, mcr_ordering_others, mcr_ordering_post):
         """
         Predict regression target for X.
 
@@ -1773,7 +1811,7 @@ class ForestRegressor(RegressorMixin, BaseForest, metaclass=ABCMeta):
         lock = threading.Lock()
         Parallel(n_jobs=n_jobs, verbose=self.verbose,
                  **_joblib_parallel_args(require="sharedmem"))(
-            delayed(_accumulate_prediction)(e.predict_vim_from_parallel_fn, (X,permuted_indices,mcr_type), [y_hat], lock)
+            delayed(_accumulate_prediction)(e.predict_vim_from_parallel_fn, (X,permuted_indices,mcr_ordering_pre, mcr_ordering_others, mcr_ordering_post), [y_hat], lock)
             for e in self.estimators_)
 
         y_hat /= len(self.estimators_)

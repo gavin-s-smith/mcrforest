@@ -474,10 +474,14 @@ class BaseDecisionTree(MultiOutputMixin, BaseEstimator, metaclass=ABCMeta):
     def predict_vim_from_parallel_fn(self, D, check_input=True):
         X = D[0]
         permuted_vars = D[1]
-        mcr_type = D[2]
-        return self.predict_vim( X, permuted_vars, mcr_type, check_input=check_input)
+        mcr_ordering_pre = D[2]
+        mcr_ordering_others = D[3]
+        mcr_ordering_post = D[4]
+        
+        
+        return self.predict_vim( X, permuted_vars, mcr_ordering_pre, mcr_ordering_others, mcr_ordering_post, check_input=check_input)
 
-    def predict_vim(self, X, permuted_vars, mcr_type, check_input=True):
+    def predict_vim(self, X, permuted_vars, mcr_ordering_pre, mcr_ordering_others, mcr_ordering_post, check_input=True):
         """Predict class or regression value for X.
 
         For a classification model, the predicted class for each sample in X is
@@ -505,14 +509,12 @@ class BaseDecisionTree(MultiOutputMixin, BaseEstimator, metaclass=ABCMeta):
         # if 'f_idx: C [(D <= 0.5)] x <= 0.5' in check and 'f_idx: B [(A <= 0.5)] x <= 0.5' in check and 'f_idx: B [(A > 0.5)] x <= 0.5' in check:
         #     print('start debug')
 
+        np.random.shuffle(mcr_ordering_others)
+
         check_is_fitted(self)
         X = self._validate_X_predict(X, check_input)
-        if type(mcr_type) == int:
-            proba = self.tree_.predict_vim(X, permuted_vars, mcr_type)
-        elif isinstance(mcr_type,(list,pd.core.series.Series,np.ndarray)):
-            proba = self.tree_.predict_vim_via_ordering(X, permuted_vars, mcr_type)
-        else:
-            raise Exception('mcr_type must be either 1 or -1 OR an ordered list of variable')
+        proba = self.tree_.predict_vim_via_ordering(X, permuted_vars, mcr_ordering_pre, mcr_ordering_others, mcr_ordering_post)
+        
         n_samples = X.shape[0]
 
         #print('CALLING HERE alsdfhalsdfjal')
@@ -1003,7 +1005,10 @@ class DecisionTreeClassifier(ClassifierMixin, BaseDecisionTree):
     def predict_proba_vim(self, D, check_input=True):
         X = D[0]
         permuted_vars = D[1]
-        mcr_type = D[2]
+        mcr_ordering_pre = D[2]
+        mcr_ordering_others = D[3]
+        mcr_ordering_post = D[4]
+
         """Predict class probabilities of the input samples X.
 
         The predicted class probability is the fraction of samples of the same
@@ -1030,12 +1035,9 @@ class DecisionTreeClassifier(ClassifierMixin, BaseDecisionTree):
         check_is_fitted(self)
         X = self._validate_X_predict(X, check_input)
         
-        if type(mcr_type) == int:
-            proba = self.tree_.predict_vim(X, permuted_vars, mcr_type)
-        elif isinstance(mcr_type,(list,pd.core.series.Series,np.ndarray)):
-            proba = self.tree_.predict_vim_via_ordering(X, permuted_vars, mcr_type)
-        else:
-            raise Exception('mcr_type must be either 1 or -1 OR an ordered list of variable')
+       
+        proba = self.tree_.predict_vim_via_ordering(X, permuted_vars, mcr_ordering_pre, mcr_ordering_others, mcr_ordering_post)
+       
 
         
 

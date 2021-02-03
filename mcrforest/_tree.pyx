@@ -24,6 +24,7 @@ from libc.string cimport memcpy
 from libc.string cimport memset
 from libc.stdint cimport SIZE_MAX
 
+
 import numpy as np
 cimport numpy as np
 np.import_array()
@@ -812,9 +813,9 @@ cdef class Tree:
             out = out.reshape(X.shape[0], self.max_n_classes)
         return out
     
-    cpdef np.ndarray predict_vim_via_ordering(self, object X, object permuted_vars, object mcr_ordering):
+    cpdef np.ndarray predict_vim_via_ordering(self, object X, object permuted_vars, object mcr_ordering_pre, object mcr_ordering_others, object mcr_ordering_post):
         """Predict target for X."""
-        out = self._get_value_ndarray().take(self._apply_dense_surrogate_via_mcr_ordering(X,permuted_vars,mcr_ordering), axis=0,
+        out = self._get_value_ndarray().take(self._apply_dense_surrogate_via_mcr_ordering(X,permuted_vars,mcr_ordering_pre,mcr_ordering_others,mcr_ordering_post), axis=0,
                                              mode='clip')
         if self.n_outputs == 1:
             out = out.reshape(X.shape[0], self.max_n_classes)
@@ -918,7 +919,7 @@ cdef class Tree:
 
         return out
 
-    cdef inline np.ndarray _apply_dense_surrogate_via_mcr_ordering(self, object X, object permuted_vars, object mcr_ordering):
+    cdef inline np.ndarray _apply_dense_surrogate_via_mcr_ordering_orig2(self, object X, object permuted_vars, object mcr_ordering_pre, object mcr_ordering_others, object mcr_ordering_post):
         """Finds the terminal region (=leaf node) for each sample in X."""
 
         # Check input
@@ -926,9 +927,17 @@ cdef class Tree:
             raise ValueError("X should be in np.ndarray format, got %s"
                              % type(X))
         
-        if not isinstance(mcr_ordering, np.ndarray):
+        if not isinstance(mcr_ordering_pre, np.ndarray):
             raise ValueError("mcr_ordering should be in np.ndarray format, got %s"
-                             % type(mcr_ordering))
+                             % type(mcr_ordering_pre))
+        
+        if not isinstance(mcr_ordering_others, np.ndarray):
+            raise ValueError("mcr_ordering should be in np.ndarray format, got %s"
+                             % type(mcr_ordering_others))
+        
+        if not isinstance(mcr_ordering_post, np.ndarray):
+            raise ValueError("mcr_ordering should be in np.ndarray format, got %s"
+                             % type(mcr_ordering_post))
 
 
         if X.dtype != DTYPE:
@@ -942,8 +951,14 @@ cdef class Tree:
         cdef const SIZE_t[:] perm_vars = permuted_vars
         cdef SIZE_t n_permvars = len(permuted_vars)
 
-        cdef const SIZE_t[:] mcr_order = mcr_ordering
-        cdef SIZE_t n_mcr_order = len(mcr_ordering)
+        cdef const SIZE_t[:] mcr_order_pre = mcr_ordering_pre
+        cdef SIZE_t n_mcr_order_pre = len(mcr_ordering_pre)
+
+        cdef const SIZE_t[:] mcr_order_others = mcr_ordering_others
+        cdef SIZE_t n_mcr_order_others = len(mcr_ordering_others)
+
+        cdef const SIZE_t[:] mcr_order_post = mcr_ordering_post
+        cdef SIZE_t n_mcr_order_post = len(mcr_ordering_post)
 
         cdef SIZE_t feature_to_use = 0
         cdef DTYPE_t threshold_to_use = 0
@@ -981,16 +996,54 @@ cdef class Tree:
 
                     found = 0
 
+                    ######## PRE. Search L-R through surrogates OR split
                     # for each variable in the order of use (L2R for MCR+ and MCR-, this ordering will be different in each case)
-                    for io in range(n_mcr_order):
+                    for io in range(n_mcr_order_pre):
 
                         # check if real split is this var
-                        if feature_to_use == mcr_order[io]:
+                        if feature_to_use == mcr_order_pre[io]:
                             found = -1
+                            break
                         else:
                             # check all surrogates
                             for iga in range(node.num_surrogates):
-                                if node.surrogate_feature[iga] == mcr_order[io]:
+                                if node.surrogate_feature[iga] == mcr_order_pre[io]:
+                                    found = 1
+                                    feature_to_use = node.surrogate_feature[iga] 
+                                    threshold_to_use = node.surrogate_threshold[iga] 
+                                    do_not_flip = node.surrogate_flip[iga] # yes this is correct surrogate_flip[x] = 1 means don't flip
+                                    break
+                        
+                    # OTHERS PART 1: 1st check all OTHERS to see if contains the actual split
+                    for io in range(n_mcr_order_others):
+                        if found != 0:
+                            break
+                        # check if real split is this var
+                        if feature_to_use == mcr_order_others[io]:
+                            found = -1
+                            break
+                        elif node.surrogate_feature[iga] == mcr_order_others[io]:
+                            found = 1
+                            feature_to_use = node.surrogate_feature[iga] 
+                            threshold_to_use = node.surrogate_threshold[iga] 
+                            do_not_flip = node.surrogate_flip[iga] # yes this is correct surrogate_flip[x] = 1 means don't flip
+                            break
+
+                        
+                    # POST search L-R through surrogates OR split
+                    # for each variable in the order of use (L2R for MCR+ and MCR-, this ordering will be different in each case)
+                    for io in range(n_mcr_order_post):
+                        if found != 0:
+                            break
+
+                        # check if real split is this var
+                        if feature_to_use == mcr_order_post[io]:
+                            found = -1
+                            break
+                        else:
+                            # check all surrogates
+                            for iga in range(node.num_surrogates):
+                                if node.surrogate_feature[iga] == mcr_order_post[io]:
                                     found = 1
                                     feature_to_use = node.surrogate_feature[iga] 
                                     threshold_to_use = node.surrogate_threshold[iga] 
@@ -1002,7 +1055,6 @@ cdef class Tree:
                             #    print(f'feature_to_use: {feature_to_use}')
                             #    print(f'threshold_to_use: {threshold_to_use}')
                             break
-
 
                     if do_not_flip == 1:
                         #with gil:
@@ -1027,6 +1079,212 @@ cdef class Tree:
         #print('===> {}'.format(out))
 
         return out
+
+
+    cdef inline np.ndarray _apply_dense_surrogate_via_mcr_ordering(self, object X, object permuted_vars, object mcr_ordering_pre, object mcr_ordering_others, object mcr_ordering_post):
+        """Finds the terminal region (=leaf node) for each sample in X."""
+
+        # Check input
+        if not isinstance(X, np.ndarray):
+            raise ValueError("X should be in np.ndarray format, got %s"
+                             % type(X))
+        
+        if not isinstance(mcr_ordering_pre, np.ndarray):
+            raise ValueError("mcr_ordering should be in np.ndarray format, got %s"
+                             % type(mcr_ordering_pre))
+        
+        if not isinstance(mcr_ordering_others, np.ndarray):
+            raise ValueError("mcr_ordering should be in np.ndarray format, got %s"
+                             % type(mcr_ordering_others))
+        
+        if not isinstance(mcr_ordering_post, np.ndarray):
+            raise ValueError("mcr_ordering should be in np.ndarray format, got %s"
+                             % type(mcr_ordering_post))
+
+
+        if X.dtype != DTYPE:
+            raise ValueError("X.dtype should be np.float32, got %s" % X.dtype)
+
+        # Extract input
+        cdef const DTYPE_t[:, :] X_ndarray = X
+        cdef SIZE_t n_samples = X.shape[0]
+
+        
+        cdef const SIZE_t[:] perm_vars = permuted_vars
+        cdef SIZE_t n_permvars = len(permuted_vars)
+
+        cdef const SIZE_t[:] mcr_order_pre = mcr_ordering_pre
+        cdef SIZE_t n_mcr_order_pre = len(mcr_ordering_pre)
+
+        cdef const SIZE_t[:] mcr_order_others = mcr_ordering_others
+        cdef SIZE_t n_mcr_order_others = len(mcr_ordering_others)
+
+        cdef const SIZE_t[:] mcr_order_post = mcr_ordering_post
+        cdef SIZE_t n_mcr_order_post = len(mcr_ordering_post)
+
+        cdef SIZE_t feature_to_use = 0
+        cdef DTYPE_t threshold_to_use = 0
+        # Initialize output
+        cdef np.ndarray[SIZE_t] out = np.zeros((n_samples,), dtype=np.intp)
+        cdef SIZE_t* out_ptr = <SIZE_t*> out.data
+
+        # Initialize auxiliary data-structure
+        cdef Node* node = NULL
+        cdef SIZE_t i = 0
+        cdef SIZE_t mcr_idx = 0
+        cdef int found = 0
+        cdef int in_perm_set = 0
+        
+        cdef int do_not_flip = 1 # 1 is don't flip, -1 is flip.  
+
+        #print('Number of permuted variables: {}'.format(n_permvars))
+        #print('MCR TYPE: {}'.format(c_mcr_type))
+
+        #print('Using ordering based MCR.')
+
+        with nogil:
+            for i in range(n_samples):
+                #with gil:
+                #    print('\n========== CONSIDERING SAMPLE {} ================'.format(i))
+                node = self.nodes
+                # While node not a leaf
+                while node.left_child != _TREE_LEAF:
+                    # ... and node.right_child != _TREE_LEAF:
+                    #with gil:
+                    #    print(f'Node has {node.num_surrogates} surrogates')
+                  
+                    do_not_flip = 1 
+                    feature_to_use = node.feature
+                    threshold_to_use = node.threshold
+
+                    found = 0
+
+                    ######## PRE. Search L-R through surrogates OR split
+                    # for each variable in the order of use (L2R for MCR+ and MCR-, this ordering will be different in each case)
+                    for io in range(n_mcr_order_pre):
+
+                        # check if real split is this var
+                        if feature_to_use == mcr_order_pre[io]:
+                            found = -1
+                        else:
+                            # check all surrogates
+                            for iga in range(node.num_surrogates):
+                                if node.surrogate_feature[iga] == mcr_order_pre[io]:
+                                    found = 1
+                                    feature_to_use = node.surrogate_feature[iga] 
+                                    threshold_to_use = node.surrogate_threshold[iga] 
+                                    do_not_flip = node.surrogate_flip[iga] # yes this is correct surrogate_flip[x] = 1 means don't flip
+
+                                    # check if in perm set
+                                    in_perm_set = 0
+                                    for pi in range(n_permvars):
+                                        if feature_to_use == perm_vars[pi]:
+                                            in_perm_set = 1
+
+                                    # if not in perm set
+                                    if in_perm_set == 0:
+                                        feature_to_use = node.feature
+                                        threshold_to_use = node.threshold
+
+                                    break
+
+                        if found != 0:
+                            break
+                        
+                    # OTHERS: 1st check all OTHERS to see if contains the actual split
+                    for io in range(n_mcr_order_others):
+                        if found != 0:
+                            break
+                        # check if real split is this var
+                        if feature_to_use == mcr_order_others[io]:
+                            found = -1
+                            break
+                        # check all surrogates
+                        for iga in range(node.num_surrogates):
+                            if node.surrogate_feature[iga] == mcr_order_others[io]:
+                                found = 1
+                                feature_to_use = node.surrogate_feature[iga] 
+                                threshold_to_use = node.surrogate_threshold[iga] 
+                                do_not_flip = node.surrogate_flip[iga] # yes this is correct surrogate_flip[x] = 1 means don't flip
+                                
+                                # check if in perm set
+                                in_perm_set = 0
+                                for pi in range(n_permvars):
+                                    if feature_to_use == perm_vars[pi]:
+                                        in_perm_set = 1
+
+                                # if not in perm set
+                                if in_perm_set == 0:
+                                    feature_to_use = node.feature
+                                    threshold_to_use = node.threshold
+
+                                break
+                            
+                                
+                        if found != 0:
+                            break
+                
+                    
+
+                    # POST search L-R through surrogates OR split
+                    # for each variable in the order of use (L2R for MCR+ and MCR-, this ordering will be different in each case)
+                    for io in range(n_mcr_order_post):
+                        if found != 0:
+                            break
+
+                        # check if real split is this var
+                        if feature_to_use == mcr_order_post[io]:
+                            found = -1
+                            break
+
+                        # check all surrogates
+                        for iga in range(node.num_surrogates):
+                            if node.surrogate_feature[iga] == mcr_order_post[io]:
+                                found = 1
+                                feature_to_use = node.surrogate_feature[iga] 
+                                threshold_to_use = node.surrogate_threshold[iga] 
+                                do_not_flip = node.surrogate_flip[iga] # yes this is correct surrogate_flip[x] = 1 means don't flip
+                                
+                                # check if in perm set
+                                in_perm_set = 0
+                                for pi in range(n_permvars):
+                                    if feature_to_use == perm_vars[pi]:
+                                        in_perm_set = 1
+
+                                # if not in perm set
+                                if in_perm_set == 0:
+                                    feature_to_use = node.feature
+                                    threshold_to_use = node.threshold
+
+                                break
+
+                        if found != 0:
+                            break
+
+                    if do_not_flip == 1:
+                        #with gil:
+                            #if i == 0:
+                            #print('Considering feature: {}] {} <= {}. If True: going LEFT.'.format(feature_to_use, X_ndarray[i, feature_to_use], threshold_to_use))
+                        if X_ndarray[i, feature_to_use] <= threshold_to_use:
+                            node = &self.nodes[node.left_child]
+                        else:
+                            node = &self.nodes[node.right_child]
+                    else:
+                        #with gil:
+                            #if i == 0:
+                            #print('Considering feature: {}] {} <= {}. If True: going RIGHT.'.format(feature_to_use, X_ndarray[i, feature_to_use], threshold_to_use))
+                        if X_ndarray[i, feature_to_use] <= threshold_to_use:
+                            node = &self.nodes[node.right_child]
+                        else:
+                            node = &self.nodes[node.left_child]
+
+                out_ptr[i] = <SIZE_t>(node - self.nodes)  # node offset
+
+        
+        #print('===> {}'.format(out))
+
+        return out
+
 
     cdef inline np.ndarray _apply_dense_surrogate(self, object X, object permuted_vars, int mcr_type):
         """Finds the terminal region (=leaf node) for each sample in X."""

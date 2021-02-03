@@ -13,6 +13,8 @@
 import numpy as np
 cimport numpy as np
 
+
+
 ctypedef np.npy_float32 DTYPE_t          # Type of X
 ctypedef np.npy_float64 DOUBLE_t         # Type of y, sample_weight
 ctypedef np.npy_intp SIZE_t              # Type for indices and counters
@@ -74,7 +76,7 @@ cdef class Tree:
 
     cpdef np.ndarray predict(self, object X)
     cpdef np.ndarray predict_vim(self, object X, object permuted_vars, int mcr_type)
-    cpdef np.ndarray predict_vim_via_ordering(self, object X, object permuted_vars, object mcr_ordering)
+    cpdef np.ndarray predict_vim_via_ordering(self, object X, object permuted_vars, object mcr_ordering_pre, object mcr_ordering_others, object mcr_ordering_post)
 
 
     cpdef void print_tree(self, object col_names)
@@ -83,7 +85,8 @@ cdef class Tree:
     cpdef np.ndarray apply(self, object X)
     cdef np.ndarray _apply_dense(self, object X)
     cdef np.ndarray _apply_dense_surrogate(self, object X, object permuted_vars, int mcr_type)
-    cdef np.ndarray _apply_dense_surrogate_via_mcr_ordering(self, object X, object permuted_vars, object mcr_ordering)
+    cdef np.ndarray _apply_dense_surrogate_via_mcr_ordering(self, object X, object permuted_vars, object mcr_ordering_pre, object mcr_ordering_others, object mcr_ordering_post)
+    cdef np.ndarray _apply_dense_surrogate_via_mcr_ordering_orig2(self, object X, object permuted_vars, object mcr_ordering_pre, object mcr_ordering_others, object mcr_ordering_post)
     cdef np.ndarray _apply_sparse_csr(self, object X)
 
     cpdef object decision_path(self, object X)
