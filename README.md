@@ -25,9 +25,7 @@ python setup.py build_ext --inplace
 
 mcrforest is an extention to the sklearn RandomForestClassifier and RandomForestRegressor classes and can be used as a direct replacement.
 
-mcrforest includes an additional method which can be called after training a model. In addition there are two restrictions on the model building that must be met.
-1. bootstrap must be set to false
-2. when using a RandomForestClassifier currently only binary classification is supported and the labels must be 0,1
+mcrforest includes two additional methods which can be called after training a model. In addition is one restriction on the model building that must be met, that bootstrap must be set to false.
 
 ```
 mcr(X_in, y_in, indices_to_permute, num_times = 100, mcr_type = 1, seed = 13111985)
@@ -45,61 +43,14 @@ mcr_type (int): 1 for MCR+, -1 for MCR-.
 seed (int): A seed to control the permutation randomness.
 ```
 
-### Replication of results from the paper
-Synthetic Experiments:
-https://colab.research.google.com/drive/1UuORvqSYW14eiBX3nzz2WWUrjQAXcvFw
-
-COMPAS Experiments:
-https://colab.research.google.com/drive/1-hWJ4DNOnvrLz4fxGd--NJjGHV26TIei
-
-Breast Cancer Experiments
-https://colab.research.google.com/drive/16HGlytaraR6Kn4EmqKk0_Q9Nl7O_hU5F
-
-RF-MCR Analysis:
-https://colab.research.google.com/drive/1AMDW9Ss69QEzgBkMgx8Tw_zIpcZnMcr4
-
-
-### Example Usage A
 ```
-import seaborn as sns
-import pandas as pd
-import numpy as np
-import matplotlib.pyplot as plt
-from mcrforest.forest import RandomForestRegressor
-
-# Load data
-X_train = pd.read_csv('X_train.csv')
-y_train = pd.read_csv('y_train.csv')
-
-# If we are going to use the training set for computing MCR then we MUST ensure 
-# we have controlled the complexity of the fit. This is equally true for traditional
-# permutation importance.
-# See: https://christophm.github.io/interpretable-ml-book/feature-importance.html
-
-base_model = RandomForestRegressor(random_state = 13111985, bootstrap=False)
-
-search = {'n_estimators':[500],'max_features':['auto'], 'max_depth':[5,10,15,20,30]}
-
-rf_cv_model = GridSearchCV(base_model, search)
-rf_cv_model.fit(X_train,y_train)
-
-# Refit with best parameters
-model = RandomForestRegressor( **rf_cv_model.best_params_ )
-
-model.plot_mcr(X_train, y_train)
-
-```
-
-The documentation for plot_mcr is:
-```
-Method of an mcrforest.forest.RandomForestRegressor or  mcrforest.forest.RandomForestClassifier
-
 plot_mcr(X_in, y_in, feature_names = None, feature_groups_of_interest = 'all individual features', num_times = 100, show_fig = True)
+```
 
 Compute the required information for an MCR plot and optionally display the MCR plot.
 
-Parameters
-----------
+*Parameters:*
+```
 X_in : {numpy array or Pandas DataFrame} of shape (n_samples, n_features)
     The input samples. 
 y_in : {numpy array or Pandas DataFrame} of shape (n_samples)
@@ -122,6 +73,47 @@ rf_results2 : {pandas DataFrame} of shape (2*[number_of_features OR len(feature_
         A DataFrame with three columns: ['variable', 'MCR+', 'MCR-']
         Where the column variable contains the variable name and the columns MCR+ and MCR- contain the variable's MCR+ and MCR- scores respectively.
 ```
+
+### Example Usage A
+*NOTE if using a large dataset and experiencing slow runtimes:* 
+While the computational complexity is no different, currently in practice the building of MCR Random Forests can be slower than the sklearn version. 
+As such, when determining the best meta-paramters (controling the complexity) you may want to use the sklearn version and then re-train an MCR Forest 
+version as a final step before calling the MCR methods. This is valid as the MCR Random Forest is a direct extenstion of the sklearn version.
+This is demonstrated below. If speed is not important or you have a small dataset you can use the RandomForestRegressor or RandomForestClassifier
+from the mcrforest package instead of the sklearn one below.
+```
+import seaborn as sns
+import pandas as pd
+import numpy as np
+import matplotlib.pyplot as plt
+from mcrforest.forest import RandomForestRegressor as mcrRandomForestRegressor
+from sklearn.ensemble import RandomForestRegressor as sklearnRandomForestRegressor
+
+# Load data
+X_train = pd.read_csv('X_train.csv')
+y_train = pd.read_csv('y_train.csv')
+
+# If we are going to use the training set for computing MCR then we MUST ensure 
+# we have controlled the complexity of the fit. This is equally true for traditional
+# permutation importance.
+# See: https://christophm.github.io/interpretable-ml-book/feature-importance.html
+
+# Determine the best meta-parameters using the sklearn Random Forest
+base_model = sklearnRandomForestRegressor(random_state = 13111985, bootstrap=False)
+
+search = {'n_estimators':[500],'max_features':['auto'], 'max_depth':[5,10,15,20,30]}
+
+rf_cv_model = GridSearchCV(base_model, search)
+rf_cv_model.fit(X_train,y_train)
+
+# Refit with best parameters
+model = mcrRandomForestRegressor( **rf_cv_model.best_params_ )
+
+model.plot_mcr(X_train, y_train)
+
+```
+
+
 
 
 ### Example Usage B
@@ -190,6 +182,22 @@ plt.show()
 
 ### Example output plot if using the code above
 ![Example image](http://cs.nott.ac.uk/~pszgss/research/mcr/examplemcr.png)
+
+
+### Replication of results from the paper
+Synthetic Experiments:
+https://colab.research.google.com/drive/1UuORvqSYW14eiBX3nzz2WWUrjQAXcvFw
+
+COMPAS Experiments:
+https://colab.research.google.com/drive/1-hWJ4DNOnvrLz4fxGd--NJjGHV26TIei
+
+Breast Cancer Experiments
+https://colab.research.google.com/drive/16HGlytaraR6Kn4EmqKk0_Q9Nl7O_hU5F
+
+RF-MCR Analysis:
+https://colab.research.google.com/drive/1AMDW9Ss69QEzgBkMgx8Tw_zIpcZnMcr4
+
+
 
 ## Common errors
 `AttributeError: 'RandomForestRegressor' object has no attribute '_validate_data'`
