@@ -25,3 +25,5 @@ test_roberto.py
 test_*
 *.csv
 Wen.py
+
+.*
