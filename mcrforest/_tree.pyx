@@ -1185,6 +1185,7 @@ cdef class Tree:
                                     if in_perm_set == 0:
                                         feature_to_use = node.feature
                                         threshold_to_use = node.threshold
+                                        do_not_flip = 1 
 
                                     break
 
@@ -1217,7 +1218,7 @@ cdef class Tree:
                                 if in_perm_set == 0:
                                     feature_to_use = node.feature
                                     threshold_to_use = node.threshold
-
+                                    do_not_flip = 1 
                                 break
                             
                                 
@@ -1255,6 +1256,7 @@ cdef class Tree:
                                 if in_perm_set == 0:
                                     feature_to_use = node.feature
                                     threshold_to_use = node.threshold
+                                    do_not_flip = 1 
 
                                 break
 
