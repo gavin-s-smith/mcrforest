@@ -370,6 +370,22 @@ class BaseForest(MultiOutputMixin, BaseEnsemble, metaclass=ABCMeta):
             print(f'Current history: {"-->".join(self.human_readable_history)}')
 
 
+    def get_specific_forest_from_mcr_set(self, var_idx, force_use = True):
+        rfcopy = copy.deepcopy(self)
+
+        # Fix the tree swap
+        rfcopy.set_mcr_state(force_use, np.asarray([var_idx]))
+
+        # Now sort the surrogates
+        for e in rfcopy.estimators_:
+            # for each node in each tree we will "fix" it according the MCR rules
+            # this is inplace and currently has no undo mechanism. Hence must be done on a copy
+            e.mcr_freeze( var_idx, force_use )
+
+        
+        return rfcopy
+
+
     def predict_tree(self, tree_estimator, X ):
         rtn = tree_estimator.predict(X)
             
@@ -464,7 +480,7 @@ class BaseForest(MultiOutputMixin, BaseEnsemble, metaclass=ABCMeta):
         #print(f'mcr_ordering: {mcr_ordering}')
 
         if debug_call:
-            print(f'mcr(self, X_in, y_in, indices_to_permute = {indices_to_permute}, num_times = {num_times}, mcr_type = {mcr_type}, mcr_ordering = {mcr_ordering}, seed = {seed}, ...')
+            print(f'mcr(self, X_in, y_in, indices_to_permute = {indices_to_permute}, num_times = {num_times}, mcr_type = {mcr_type}, mcr_ordering_pre = {mcr_ordering_pre}, mcr_ordering_others = {mcr_ordering_others}, mcr_ordering_post = {mcr_ordering_post}, seed = {seed}, ...')
 
 
         # if (windows) passes an int32 who cares, we'll just upgrade it to int64 for the cython code. If we don't have integers though, throw an exception
@@ -566,6 +582,8 @@ class BaseForest(MultiOutputMixin, BaseEnsemble, metaclass=ABCMeta):
         
         if not debug_trees is None:
             for eidx in range(n_trees):
+                #if per_tree_diff_in_loss_ref_tree_vs_fplus_tree[eidx] != 0:
+                #    continue
                 print(f'\nTree index: {eidx}. Loss: {per_tree_diff_in_loss_ref_tree_vs_fplus_tree[eidx]}')
                 self.estimators_[eidx].print_tree(debug_trees)
                 
@@ -2263,6 +2281,8 @@ class RandomForestClassifier(ForestClassifier):
         self.ccp_alpha = ccp_alpha
         self.spoof_as_sklearn = spoof_as_sklearn
         
+        if not max_leaf_nodes is None:
+            raise Exception('For MCR, max_leaf_nodes is currently not supported.')
 
         if spoof_as_sklearn:
             from sklearn.ensemble import RandomForestClassifier as sklrfc
@@ -2547,6 +2567,9 @@ class RandomForestRegressor(ForestRegressor):
             warm_start=warm_start,
             max_samples=max_samples,
             mcr_tree_equivilient_tol = mcr_tree_equivilient_tol, performance_equivilence = performance_equivilence)
+
+        if not max_leaf_nodes is None:
+            raise Exception('For MCR, max_leaf_nodes is currently not supported.')
 
         self.criterion = criterion
         self.max_depth = max_depth

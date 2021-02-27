@@ -1,6 +1,8 @@
+# cython: language_level=3
 # cython: cdivision=True
 # cython: boundscheck=False
 # cython: wraparound=False
+
 
 # Authors: Gilles Louppe <g.louppe@gmail.com>
 #          Peter Prettenhofer <peter.prettenhofer@gmail.com>
@@ -52,6 +54,7 @@ cdef inline void _init_split(SplitRecord* self, SIZE_t start_pos) nogil:
     self.feature = 0
     self.threshold = 0.
     self.improvement = -INFINITY
+    self.num_surrogates = 0
 
 cdef class Splitter:
     """Abstract splitter class.
@@ -98,6 +101,7 @@ cdef class Splitter:
         self.potential_surrogates = NULL
         self.sample_weight = NULL
 
+        
         self.max_features = max_features
         self.min_samples_leaf = min_samples_leaf
         self.min_weight_leaf = min_weight_leaf
@@ -148,7 +152,7 @@ cdef class Splitter:
         X_idx_sorted : ndarray, default=None
             The indexes of the sorted training input samples
         """
-
+        
         self.rand_r_state = self.random_state.randint(0, RAND_R_MAX)
         cdef SIZE_t n_samples = X.shape[0]
 
@@ -213,7 +217,8 @@ cdef class Splitter:
 
         self.start = start
         self.end = end
-
+        
+        
         self.criterion.init(self.y,
                             self.sample_weight,
                             self.weighted_n_samples,
@@ -324,11 +329,13 @@ cdef class BestSplitter(BaseDenseSplitter):
         cdef double best_proxy_improvement = -INFINITY
 
         # GAVIN
+        best.num_surrogates = 0
+        current.num_surrogates = 0
         cdef int found_phase1 = 0
         cdef int found_phase2 = 0
         cdef int found = 0
         cdef int best_split_identified = 0
-        cdef DTYPE_t surrogate_threshold
+        cdef DOUBLE_t surrogate_threshold
         cdef SIZE_t splitset_at = 0
         cdef SIZE_t debug = 0
         cdef int feature_split_found = 0
@@ -828,8 +835,8 @@ cdef class BestSplitter(BaseDenseSplitter):
         split[0] = best
         n_constant_features[0] = n_total_constants
 
-        # with gil:
-        #     print('@@@@@@@@@@@@@@@@@ END @@@@@@@@@@@@@@@@@@@@@@@@@')
+        #with gil:
+        #     print(f'@@@@@@@@@@@@@@@@@ best num_surrogates: {best.num_surrogates} @@@@@@@@@@@@@@@@@@@@@@@@@')
 
         return 0
 

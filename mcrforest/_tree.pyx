@@ -1,6 +1,7 @@
 # cython: cdivision=True
 # cython: boundscheck=False
 # cython: wraparound=False
+#cython: language_level=3
 
 # Authors: Gilles Louppe <g.louppe@gmail.com>
 #          Peter Prettenhofer <peter.prettenhofer@gmail.com>
@@ -71,7 +72,7 @@ cdef SIZE_t INITIAL_STACK_SIZE = 10
 # Repeat struct definition for numpy
 NODE_DTYPE = np.dtype({
     'names': ['left_child', 'right_child', 'feature', 'threshold', 'impurity',
-              'n_node_samples', 'weighted_n_node_samples'],
+              'n_node_samples', 'weighted_n_node_samples','surrogate_flip','surrogate_threshold', 'surrogate_feature', 'num_surrogates'  ],
     'formats': [np.intp, np.intp, np.intp, np.float64, np.float64, np.intp,
                 np.float64,(np.intp,(100)),(np.float64,(100)),(np.intp,(100)),np.intp],
     'offsets': [
@@ -88,6 +89,31 @@ NODE_DTYPE = np.dtype({
         <Py_ssize_t> &(<Node*> NULL).num_surrogates
     ]
 })
+
+# NODE_DTYPE = np.dtype([ ('left_child', np.intp, 1),
+#                         ('right_child', np.intp, 1),
+#                         ('feature', np.intp, 1),
+#                         ('threshold', np.float64, 1),
+#                         ('impurity', np.float64, 1),
+#                         ('n_node_samples', np.intp, 1),
+#                         ('weighted_n_node_samples', np.float64, 1),
+#                         ('surrogate_flip', np.intp, 100),
+#                         ('surrogate_threshold', np.float64, 100),
+#                         ('surrogate_feature', np.intp, 100),
+#                         ('num_surrogates', np.intp, 1)
+#                     ])
+
+# SIZE_t left_child                    # id of the left child of the node
+#     SIZE_t right_child                   # id of the right child of the node
+#     SIZE_t feature                       # Feature used for splitting the node
+#     DOUBLE_t threshold                   # Threshold value at the node
+#     DOUBLE_t impurity                    # Impurity of the node (i.e., the value of the criterion)
+#     SIZE_t n_node_samples                # Number of samples at the node
+#     DOUBLE_t weighted_n_node_samples     # Weighted number of samples at the node
+#     SIZE_t surrogate_flip[100]  # For surrogates it indicates if the condition needs to be flipped. (-1 if it does, 1 if not)
+#     DTYPE_t surrogate_threshold[100]  # 
+#     SIZE_t surrogate_feature[100]  # 
+#     INT32_t num_surrogates
 
 # =============================================================================
 # TreeBuilder
@@ -193,6 +219,8 @@ cdef class DepthFirstTreeBuilder(TreeBuilder):
         cdef SplitRecord split
         cdef SIZE_t node_id
 
+        split.num_surrogates = 0
+
         cdef double impurity = INFINITY
         cdef SIZE_t n_constant_features
         cdef bint is_leaf
@@ -253,6 +281,9 @@ cdef class DepthFirstTreeBuilder(TreeBuilder):
                                             split.surrogate_threshold,
                                             split.surrogate_feature, 
                                             split.num_surrogates)
+                
+                #with gil:
+                #    print(f'---->{tree.nodes[node_id].num_surrogates}')
 
                 if node_id == SIZE_MAX:
                     rc = -1
@@ -287,230 +318,7 @@ cdef class DepthFirstTreeBuilder(TreeBuilder):
             raise MemoryError()
 
 
-# Best first builder ----------------------------------------------------------
 
-cdef inline int _add_to_frontier(PriorityHeapRecord* rec,
-                                 PriorityHeap frontier) nogil except -1:
-    """Adds record ``rec`` to the priority queue ``frontier``
-
-    Returns -1 in case of failure to allocate memory (and raise MemoryError)
-    or 0 otherwise.
-    """
-    return frontier.push(rec.node_id, rec.start, rec.end, rec.pos, rec.depth,
-                         rec.is_leaf, rec.improvement, rec.impurity,
-                         rec.impurity_left, rec.impurity_right)
-
-
-cdef class BestFirstTreeBuilder(TreeBuilder):
-    """Build a decision tree in best-first fashion.
-
-    The best node to expand is given by the node at the frontier that has the
-    highest impurity improvement.
-    """
-    cdef SIZE_t max_leaf_nodes
-
-    def __cinit__(self, Splitter splitter, SIZE_t min_samples_split,
-                  SIZE_t min_samples_leaf,  min_weight_leaf,
-                  SIZE_t max_depth, SIZE_t max_leaf_nodes,
-                  double min_impurity_decrease, double min_impurity_split):
-        self.splitter = splitter
-        self.min_samples_split = min_samples_split
-        self.min_samples_leaf = min_samples_leaf
-        self.min_weight_leaf = min_weight_leaf
-        self.max_depth = max_depth
-        self.max_leaf_nodes = max_leaf_nodes
-        self.min_impurity_decrease = min_impurity_decrease
-        self.min_impurity_split = min_impurity_split
-
-    cpdef build(self, Tree tree, object X, np.ndarray y,
-                np.ndarray sample_weight=None,
-                np.ndarray X_idx_sorted=None):
-        """Build a decision tree from the training set (X, y)."""
-
-        # check input
-        X, y, sample_weight = self._check_input(X, y, sample_weight)
-
-        cdef DOUBLE_t* sample_weight_ptr = NULL
-        if sample_weight is not None:
-            sample_weight_ptr = <DOUBLE_t*> sample_weight.data
-
-        # Parameters
-        cdef Splitter splitter = self.splitter
-        cdef SIZE_t max_leaf_nodes = self.max_leaf_nodes
-        cdef SIZE_t min_samples_leaf = self.min_samples_leaf
-        cdef double min_weight_leaf = self.min_weight_leaf
-        cdef SIZE_t min_samples_split = self.min_samples_split
-
-        # Recursive partition (without actual recursion)
-        splitter.init(X, y, sample_weight_ptr, X_idx_sorted)
-
-        cdef PriorityHeap frontier = PriorityHeap(INITIAL_STACK_SIZE)
-        cdef PriorityHeapRecord record
-        cdef PriorityHeapRecord split_node_left
-        cdef PriorityHeapRecord split_node_right
-
-        cdef SIZE_t n_node_samples = splitter.n_samples
-        cdef SIZE_t max_split_nodes = max_leaf_nodes - 1
-        cdef bint is_leaf
-        cdef SIZE_t max_depth_seen = -1
-        cdef int rc = 0
-        cdef Node* node
-
-        # Initial capacity
-        cdef SIZE_t init_capacity = max_split_nodes + max_leaf_nodes
-        tree._resize(init_capacity)
-
-        with nogil:
-            # add root to frontier
-            rc = self._add_split_node(splitter, tree, 0, n_node_samples,
-                                      INFINITY, IS_FIRST, IS_LEFT, NULL, 0,
-                                      &split_node_left)
-            if rc >= 0:
-                rc = _add_to_frontier(&split_node_left, frontier)
-
-            if rc == -1:
-                with gil:
-                    raise MemoryError()
-
-            while not frontier.is_empty():
-                frontier.pop(&record)
-
-                node = &tree.nodes[record.node_id]
-                is_leaf = (record.is_leaf or max_split_nodes <= 0)
-
-                if is_leaf:
-                    # Node is not expandable; set node as leaf
-                    node.left_child = _TREE_LEAF
-                    node.right_child = _TREE_LEAF
-                    node.feature = _TREE_UNDEFINED
-                    node.threshold = _TREE_UNDEFINED
-
-                else:
-                    # Node is expandable
-
-                    # Decrement number of split nodes available
-                    max_split_nodes -= 1
-
-                    # Compute left split node
-                    rc = self._add_split_node(splitter, tree,
-                                              record.start, record.pos,
-                                              record.impurity_left,
-                                              IS_NOT_FIRST, IS_LEFT, node,
-                                              record.depth + 1,
-                                              &split_node_left)
-                    if rc == -1:
-                        break
-
-                    # tree.nodes may have changed
-                    node = &tree.nodes[record.node_id]
-
-                    # Compute right split node
-                    rc = self._add_split_node(splitter, tree, record.pos,
-                                              record.end,
-                                              record.impurity_right,
-                                              IS_NOT_FIRST, IS_NOT_LEFT, node,
-                                              record.depth + 1,
-                                              &split_node_right)
-                    if rc == -1:
-                        break
-
-                    # Add nodes to queue
-                    rc = _add_to_frontier(&split_node_left, frontier)
-                    if rc == -1:
-                        break
-
-                    rc = _add_to_frontier(&split_node_right, frontier)
-                    if rc == -1:
-                        break
-
-                if record.depth > max_depth_seen:
-                    max_depth_seen = record.depth
-
-            if rc >= 0:
-                rc = tree._resize_c(tree.node_count)
-
-            if rc >= 0:
-                tree.max_depth = max_depth_seen
-
-        if rc == -1:
-            raise MemoryError()
-
-    cdef inline int _add_split_node(self, Splitter splitter, Tree tree,
-                                    SIZE_t start, SIZE_t end, double impurity,
-                                    bint is_first, bint is_left, Node* parent,
-                                    SIZE_t depth,
-                                    PriorityHeapRecord* res) nogil except -1:
-        """Adds node w/ partition ``[start, end)`` to the frontier. """
-        cdef SplitRecord split
-        cdef SIZE_t node_id
-        cdef SIZE_t n_node_samples
-        cdef SIZE_t n_constant_features = 0
-        cdef double weighted_n_samples = splitter.weighted_n_samples
-        cdef double min_impurity_decrease = self.min_impurity_decrease
-        cdef double min_impurity_split = self.min_impurity_split
-        cdef double weighted_n_node_samples
-        cdef bint is_leaf
-        cdef SIZE_t n_left, n_right
-        cdef double imp_diff
-
-        splitter.node_reset(start, end, &weighted_n_node_samples)
-
-        if is_first:
-            impurity = splitter.node_impurity()
-
-        n_node_samples = end - start
-        is_leaf = (depth >= self.max_depth or
-                   n_node_samples < self.min_samples_split or
-                   n_node_samples < 2 * self.min_samples_leaf or
-                   weighted_n_node_samples < 2 * self.min_weight_leaf or
-                   impurity <= min_impurity_split)
-
-        if not is_leaf:
-            splitter.node_split(impurity, &split, &n_constant_features)
-            # If EPSILON=0 in the below comparison, float precision issues stop
-            # splitting early, producing trees that are dissimilar to v0.18
-            is_leaf = (is_leaf or split.pos >= end or
-                       split.improvement + EPSILON < min_impurity_decrease)
-
-        node_id = tree._add_node(parent - tree.nodes
-                                 if parent != NULL
-                                 else _TREE_UNDEFINED,
-                                 is_left, is_leaf,
-                                 split.feature, split.threshold, impurity, n_node_samples,
-                                 weighted_n_node_samples, 
-                                 split.surrogate_flip,
-                                split.surrogate_threshold,
-                                split.surrogate_feature, 
-                                split.num_surrogates)
-        if node_id == SIZE_MAX:
-            return -1
-
-        # compute values also for split nodes (might become leafs later).
-        splitter.node_value(tree.value + node_id * tree.value_stride)
-
-        res.node_id = node_id
-        res.start = start
-        res.end = end
-        res.depth = depth
-        res.impurity = impurity
-
-        if not is_leaf:
-            # is split node
-            res.pos = split.pos
-            res.is_leaf = 0
-            res.improvement = split.improvement
-            res.impurity_left = split.impurity_left
-            res.impurity_right = split.impurity_right
-
-        else:
-            # is leaf => 0 improvement
-            res.pos = end
-            res.is_leaf = 1
-            res.improvement = 0.0
-            res.impurity_left = impurity
-            res.impurity_right = impurity
-
-        return 0
 
 
 # =============================================================================
@@ -673,6 +481,7 @@ cdef class Tree:
                              'cannot be imported')
 
         node_ndarray = d['nodes']
+       
         value_ndarray = d['values']
 
         value_shape = (node_ndarray.shape[0], self.n_outputs,
@@ -686,10 +495,16 @@ cdef class Tree:
             raise ValueError('Did not recognise loaded array layout')
 
         self.capacity = node_ndarray.shape[0]
+        
         if self._resize_c(self.capacity) != 0:
             raise MemoryError("resizing tree to %d" % self.capacity)
+    
+
         nodes = memcpy(self.nodes, (<np.ndarray> node_ndarray).data,
                        self.capacity * sizeof(Node))
+
+        
+
         value = memcpy(self.value, (<np.ndarray> value_ndarray).data,
                        self.capacity * self.value_stride * sizeof(double))
 
@@ -736,25 +551,65 @@ cdef class Tree:
         self.capacity = capacity
         return 0
 
+    cpdef void mcr_freeze(self, int var_idx, bint force_use ):
+        
+        cdef SIZE_t temp_node
+        
+        for i in range(self.node_count-1):
+            
+            
+            if self.nodes[i].num_surrogates <= 0:
+                continue # either not a real node or we do not have to do anything
+            
+            if force_use:
+                # MCR+
+                if self.nodes[i].feature == var_idx:
+                    continue
+                else:
+                    #print(f'self.nodes[i]: {self.nodes[i]}')
+                    for s in range(self.nodes[i].num_surrogates):
+                        
+                        if self.nodes[i].surrogate_feature[s] == var_idx:
+                            self.nodes[i].feature = self.nodes[i].surrogate_feature[s]
+                            self.nodes[i].threshold = self.nodes[i].surrogate_threshold[s]
+                            if self.nodes[i].surrogate_flip[s] == -1: # flip
+                                temp_node = self.nodes[i].left_child
+                                self.nodes[i].left_child = self.nodes[i].right_child
+                                self.nodes[i].right_child = temp_node
+            else:
+                # MCR-
+                if self.nodes[i].feature == var_idx:
+                    for s in range(self.nodes[i].num_surrogates):
+                        if self.nodes[i].surrogate_feature[s] != var_idx:
+                            self.nodes[i].feature = self.nodes[i].surrogate_feature[s]
+                            self.nodes[i].threshold = self.nodes[i].surrogate_threshold[s]
+                            if self.nodes[i].surrogate_flip[s] == -1: # flip
+                                temp_node = self.nodes[i].left_child
+                                self.nodes[i].left_child = self.nodes[i].right_child
+                                self.nodes[i].right_child = temp_node
+
     cdef SIZE_t _add_node(self, SIZE_t parent, bint is_left, bint is_leaf,
                           SIZE_t feature, double threshold, double impurity,
                           SIZE_t n_node_samples,
                           double weighted_n_node_samples, 
                           SIZE_t* surrogate_flip,
-                          DTYPE_t* surrogate_threshold,
+                          DOUBLE_t* surrogate_threshold,
                           SIZE_t* surrogate_feature, 
                           SIZE_t num_surrogates
                         ) nogil except -1:
         """Add a node to the tree.
-    SIZE_t surrogate_flip[100]  # For surrogates it indicates if the condition needs to be flipped. (-1 if it does, 1 if not)
-    DTYPE_t surrogate_threshold[100]  # 
-    SIZE_t surrogate_feature[100]  # 
-    SIZE_t num_surrogates
+        SIZE_t surrogate_flip[100]  # For surrogates it indicates if the condition needs to be flipped. (-1 if it does, 1 if not)
+        DTYPE_t surrogate_threshold[100]  # 
+        SIZE_t surrogate_feature[100]  # 
+        SIZE_t num_surrogates
 
         The new node registers itself as the child of its parent.
 
         Returns (size_t)(-1) on error.
         """
+
+        #with gil:
+        #    print(f'num_surrogates for node_id: {self.node_count}: {num_surrogates}')
         cdef SIZE_t node_id = self.node_count
 
         if node_id >= self.capacity:
@@ -765,7 +620,7 @@ cdef class Tree:
         node.impurity = impurity
         node.n_node_samples = n_node_samples
         node.weighted_n_node_samples = weighted_n_node_samples
-        node.num_surrogates = num_surrogates
+        node.num_surrogates = -999999
 
        
             
@@ -785,7 +640,7 @@ cdef class Tree:
             # left_child and right_child will be set later
             node.feature = feature
             node.threshold = threshold
-
+            node.num_surrogates = num_surrogates
 
             for ig in range(num_surrogates):
                 node.surrogate_flip[ig] = surrogate_flip[ig]
@@ -807,6 +662,7 @@ cdef class Tree:
     
     cpdef np.ndarray predict_vim(self, object X, object permuted_vars, int mcr_type):
         """Predict target for X."""
+        
         out = self._get_value_ndarray().take(self._apply_dense_surrogate(X,permuted_vars,mcr_type), axis=0,
                                              mode='clip')
         if self.n_outputs == 1:
@@ -815,12 +671,13 @@ cdef class Tree:
     
     cpdef np.ndarray predict_vim_via_ordering(self, object X, object permuted_vars, object mcr_ordering_pre, object mcr_ordering_others, object mcr_ordering_post):
         """Predict target for X."""
+        
         out = self._get_value_ndarray().take(self._apply_dense_surrogate_via_mcr_ordering(X,permuted_vars,mcr_ordering_pre,mcr_ordering_others,mcr_ordering_post), axis=0,
                                              mode='clip')
         if self.n_outputs == 1:
             out = out.reshape(X.shape[0], self.max_n_classes)
         return out
-
+ 
 
 
         
@@ -1176,16 +1033,16 @@ cdef class Tree:
                                     do_not_flip = node.surrogate_flip[iga] # yes this is correct surrogate_flip[x] = 1 means don't flip
 
                                     # check if in perm set
-                                    in_perm_set = 0
-                                    for pi in range(n_permvars):
-                                        if feature_to_use == perm_vars[pi]:
-                                            in_perm_set = 1
+                                    # in_perm_set = 0
+                                    # for pi in range(n_permvars):
+                                    #     if feature_to_use == perm_vars[pi]:
+                                    #         in_perm_set = 1
 
-                                    # if not in perm set
-                                    if in_perm_set == 0:
-                                        feature_to_use = node.feature
-                                        threshold_to_use = node.threshold
-                                        do_not_flip = 1 
+                                    # # if not in perm set
+                                    # if in_perm_set == 0:
+                                    #     feature_to_use = node.feature
+                                    #     threshold_to_use = node.threshold
+                                    #     do_not_flip = 1 
 
                                     break
 
@@ -1714,7 +1571,7 @@ cdef class Tree:
         arr.base = <PyObject*> self
         return arr
 
-    cdef np.ndarray _get_node_ndarray(self):
+    cpdef np.ndarray _get_node_ndarray(self):
         """Wraps nodes as a NumPy struct array.
 
         The array keeps a reference to this Tree, which manages the underlying
@@ -1727,10 +1584,14 @@ cdef class Tree:
         strides[0] = sizeof(Node)
         cdef np.ndarray arr
         Py_INCREF(NODE_DTYPE)
-        arr = PyArray_NewFromDescr(<PyTypeObject *> np.ndarray,
-                                   <np.dtype> NODE_DTYPE, 1, shape,
-                                   strides, <void*> self.nodes,
-                                   np.NPY_DEFAULT, None)
+        arr = PyArray_NewFromDescr(<PyTypeObject *> np.ndarray, # subtype
+                                   <np.dtype> NODE_DTYPE, # descr
+                                   1, #nd
+                                   shape, #dims
+                                   strides, #strides
+                                   <void*> self.nodes, #data
+                                   np.NPY_DEFAULT,  #flags
+                                   None )# obj
         Py_INCREF(self)
         arr.base = <PyObject*> self
         return arr
@@ -1842,423 +1703,3 @@ cdef class Tree:
                                  total_weight)
 
 
-# =============================================================================
-# Build Pruned Tree
-# =============================================================================
-
-
-cdef class _CCPPruneController:
-    """Base class used by build_pruned_tree_ccp and ccp_pruning_path
-    to control pruning.
-    """
-    cdef bint stop_pruning(self, DOUBLE_t effective_alpha) nogil:
-        """Return 1 to stop pruning and 0 to continue pruning"""
-        return 0
-
-    cdef void save_metrics(self, DOUBLE_t effective_alpha,
-                           DOUBLE_t subtree_impurities) nogil:
-        """Save metrics when pruning"""
-        pass
-
-    cdef void after_pruning(self, unsigned char[:] in_subtree) nogil:
-        """Called after pruning"""
-        pass
-
-
-cdef class _AlphaPruner(_CCPPruneController):
-    """Use alpha to control when to stop pruning."""
-    cdef DOUBLE_t ccp_alpha
-    cdef SIZE_t capacity
-
-    def __cinit__(self, DOUBLE_t ccp_alpha):
-        self.ccp_alpha = ccp_alpha
-        self.capacity = 0
-
-    cdef bint stop_pruning(self, DOUBLE_t effective_alpha) nogil:
-        # The subtree on the previous iteration has the greatest ccp_alpha
-        # less than or equal to self.ccp_alpha
-        return self.ccp_alpha < effective_alpha
-
-    cdef void after_pruning(self, unsigned char[:] in_subtree) nogil:
-        """Updates the number of leaves in subtree"""
-        for i in range(in_subtree.shape[0]):
-            if in_subtree[i]:
-                self.capacity += 1
-
-
-cdef class _PathFinder(_CCPPruneController):
-    """Record metrics used to return the cost complexity path."""
-    cdef DOUBLE_t[:] ccp_alphas
-    cdef DOUBLE_t[:] impurities
-    cdef UINT32_t count
-
-    def __cinit__(self,  int node_count):
-        self.ccp_alphas = np.zeros(shape=(node_count), dtype=np.float64)
-        self.impurities = np.zeros(shape=(node_count), dtype=np.float64)
-        self.count = 0
-
-    cdef void save_metrics(self,
-                           DOUBLE_t effective_alpha,
-                           DOUBLE_t subtree_impurities) nogil:
-        self.ccp_alphas[self.count] = effective_alpha
-        self.impurities[self.count] = subtree_impurities
-        self.count += 1
-
-
-cdef _cost_complexity_prune(unsigned char[:] leaves_in_subtree, # OUT
-                            Tree orig_tree,
-                            _CCPPruneController controller):
-    """Perform cost complexity pruning.
-
-    This function takes an already grown tree, `orig_tree` and outputs a
-    boolean mask `leaves_in_subtree` to are the leaves in the pruned tree. The
-    controller signals when the pruning should stop and is passed the
-    metrics of the subtrees during the pruning process.
-
-    Parameters
-    ----------
-    leaves_in_subtree : unsigned char[:]
-        Output for leaves of subtree
-    orig_tree : Tree
-        Original tree
-    ccp_controller : _CCPPruneController
-        Cost complexity controller
-    """
-
-    cdef:
-        SIZE_t i
-        SIZE_t n_nodes = orig_tree.node_count
-        # prior probability using weighted samples
-        DOUBLE_t[:] weighted_n_node_samples = orig_tree.weighted_n_node_samples
-        DOUBLE_t total_sum_weights = weighted_n_node_samples[0]
-        DOUBLE_t[:] impurity = orig_tree.impurity
-        # weighted impurity of each node
-        DOUBLE_t[:] r_node = np.empty(shape=n_nodes, dtype=np.float64)
-
-        SIZE_t[:] child_l = orig_tree.children_left
-        SIZE_t[:] child_r = orig_tree.children_right
-        SIZE_t[:] parent = np.zeros(shape=n_nodes, dtype=np.intp)
-
-        # Only uses the start and parent variables
-        Stack stack = Stack(INITIAL_STACK_SIZE)
-        StackRecord stack_record
-        int rc = 0
-        SIZE_t node_idx
-
-        SIZE_t[:] n_leaves = np.zeros(shape=n_nodes, dtype=np.intp)
-        DOUBLE_t[:] r_branch = np.zeros(shape=n_nodes, dtype=np.float64)
-        DOUBLE_t current_r
-        SIZE_t leaf_idx
-        SIZE_t parent_idx
-
-        # candidate nodes that can be pruned
-        unsigned char[:] candidate_nodes = np.zeros(shape=n_nodes,
-                                                    dtype=np.uint8)
-        # nodes in subtree
-        unsigned char[:] in_subtree = np.ones(shape=n_nodes, dtype=np.uint8)
-        DOUBLE_t[:] g_node = np.zeros(shape=n_nodes, dtype=np.float64)
-        SIZE_t pruned_branch_node_idx
-        DOUBLE_t subtree_alpha
-        DOUBLE_t effective_alpha
-        SIZE_t child_l_idx
-        SIZE_t child_r_idx
-        SIZE_t n_pruned_leaves
-        DOUBLE_t r_diff
-        DOUBLE_t max_float64 = np.finfo(np.float64).max
-
-    # find parent node ids and leaves
-    with nogil:
-
-        for i in range(r_node.shape[0]):
-            r_node[i] = (
-                weighted_n_node_samples[i] * impurity[i] / total_sum_weights)
-
-        # Push root node, using StackRecord.start as node id
-        rc = stack.push(0, 0, 0, -1, 0, 0, 0)
-        if rc == -1:
-            with gil:
-                raise MemoryError("pruning tree")
-
-        while not stack.is_empty():
-            stack.pop(&stack_record)
-            node_idx = stack_record.start
-            parent[node_idx] = stack_record.parent
-            if child_l[node_idx] == _TREE_LEAF:
-                # ... and child_r[node_idx] == _TREE_LEAF:
-                leaves_in_subtree[node_idx] = 1
-            else:
-                rc = stack.push(child_l[node_idx], 0, 0, node_idx, 0, 0, 0)
-                if rc == -1:
-                    with gil:
-                        raise MemoryError("pruning tree")
-
-                rc = stack.push(child_r[node_idx], 0, 0, node_idx, 0, 0, 0)
-                if rc == -1:
-                    with gil:
-                        raise MemoryError("pruning tree")
-
-        # computes number of leaves in all branches and the overall impurity of
-        # the branch. The overall impurity is the sum of r_node in its leaves.
-        for leaf_idx in range(leaves_in_subtree.shape[0]):
-            if not leaves_in_subtree[leaf_idx]:
-                continue
-            r_branch[leaf_idx] = r_node[leaf_idx]
-
-            # bubble up values to ancestor nodes
-            current_r = r_node[leaf_idx]
-            while leaf_idx != 0:
-                parent_idx = parent[leaf_idx]
-                r_branch[parent_idx] += current_r
-                n_leaves[parent_idx] += 1
-                leaf_idx = parent_idx
-
-        for i in range(leaves_in_subtree.shape[0]):
-            candidate_nodes[i] = not leaves_in_subtree[i]
-
-        # save metrics before pruning
-        controller.save_metrics(0.0, r_branch[0])
-
-        # while root node is not a leaf
-        while candidate_nodes[0]:
-
-            # computes ccp_alpha for subtrees and finds the minimal alpha
-            effective_alpha = max_float64
-            for i in range(n_nodes):
-                if not candidate_nodes[i]:
-                    continue
-                subtree_alpha = (r_node[i] - r_branch[i]) / (n_leaves[i] - 1)
-                if subtree_alpha < effective_alpha:
-                    effective_alpha = subtree_alpha
-                    pruned_branch_node_idx = i
-
-            if controller.stop_pruning(effective_alpha):
-                break
-
-            # stack uses only the start variable
-            rc = stack.push(pruned_branch_node_idx, 0, 0, 0, 0, 0, 0)
-            if rc == -1:
-                with gil:
-                    raise MemoryError("pruning tree")
-
-            # descendants of branch are not in subtree
-            while not stack.is_empty():
-                stack.pop(&stack_record)
-                node_idx = stack_record.start
-
-                if not in_subtree[node_idx]:
-                    continue # branch has already been marked for pruning
-                candidate_nodes[node_idx] = 0
-                leaves_in_subtree[node_idx] = 0
-                in_subtree[node_idx] = 0
-
-                if child_l[node_idx] != _TREE_LEAF:
-                    # ... and child_r[node_idx] != _TREE_LEAF:
-                    rc = stack.push(child_l[node_idx], 0, 0, 0, 0, 0, 0)
-                    if rc == -1:
-                        with gil:
-                            raise MemoryError("pruning tree")
-                    rc = stack.push(child_r[node_idx], 0, 0, 0, 0, 0, 0)
-                    if rc == -1:
-                        with gil:
-                            raise MemoryError("pruning tree")
-            leaves_in_subtree[pruned_branch_node_idx] = 1
-            in_subtree[pruned_branch_node_idx] = 1
-
-            # updates number of leaves
-            n_pruned_leaves = n_leaves[pruned_branch_node_idx] - 1
-            n_leaves[pruned_branch_node_idx] = 0
-
-            # computes the increase in r_branch to bubble up
-            r_diff = r_node[pruned_branch_node_idx] - r_branch[pruned_branch_node_idx]
-            r_branch[pruned_branch_node_idx] = r_node[pruned_branch_node_idx]
-
-            # bubble up values to ancestors
-            node_idx = parent[pruned_branch_node_idx]
-            while node_idx != -1:
-                n_leaves[node_idx] -= n_pruned_leaves
-                r_branch[node_idx] += r_diff
-                node_idx = parent[node_idx]
-
-            controller.save_metrics(effective_alpha, r_branch[0])
-
-        controller.after_pruning(in_subtree)
-
-
-def _build_pruned_tree_ccp(
-    Tree tree, # OUT
-    Tree orig_tree,
-    DOUBLE_t ccp_alpha):
-    """Build a pruned tree from the original tree using cost complexity
-    pruning.
-
-    The values and nodes from the original tree are copied into the pruned
-    tree.
-
-    Parameters
-    ----------
-    tree : Tree
-        Location to place the pruned tree
-    orig_tree : Tree
-        Original tree
-    ccp_alpha : positive double
-        Complexity parameter. The subtree with the largest cost complexity
-        that is smaller than ``ccp_alpha`` will be chosen. By default,
-        no pruning is performed.
-    """
-
-    cdef:
-        SIZE_t n_nodes = orig_tree.node_count
-        unsigned char[:] leaves_in_subtree = np.zeros(
-            shape=n_nodes, dtype=np.uint8)
-
-    pruning_controller = _AlphaPruner(ccp_alpha=ccp_alpha)
-
-    _cost_complexity_prune(leaves_in_subtree, orig_tree, pruning_controller)
-
-    _build_pruned_tree(tree, orig_tree, leaves_in_subtree,
-                       pruning_controller.capacity)
-
-
-def ccp_pruning_path(Tree orig_tree):
-    """Computes the cost complexity pruning path.
-
-    Parameters
-    ----------
-    tree : Tree
-        Original tree.
-
-    Returns
-    -------
-    path_info : dict
-        Information about pruning path with attributes:
-
-        ccp_alphas : ndarray
-            Effective alphas of subtree during pruning.
-
-        impurities : ndarray
-            Sum of the impurities of the subtree leaves for the
-            corresponding alpha value in ``ccp_alphas``.
-    """
-    cdef:
-        unsigned char[:] leaves_in_subtree = np.zeros(
-            shape=orig_tree.node_count, dtype=np.uint8)
-
-    path_finder = _PathFinder(orig_tree.node_count)
-
-    _cost_complexity_prune(leaves_in_subtree, orig_tree, path_finder)
-
-    cdef:
-        UINT32_t total_items = path_finder.count
-        np.ndarray ccp_alphas = np.empty(shape=total_items,
-                                         dtype=np.float64)
-        np.ndarray impurities = np.empty(shape=total_items,
-                                         dtype=np.float64)
-        UINT32_t count = 0
-
-    while count < total_items:
-        ccp_alphas[count] = path_finder.ccp_alphas[count]
-        impurities[count] = path_finder.impurities[count]
-        count += 1
-
-    return {'ccp_alphas': ccp_alphas, 'impurities': impurities}
-
-
-cdef _build_pruned_tree(
-    Tree tree, # OUT
-    Tree orig_tree,
-    const unsigned char[:] leaves_in_subtree,
-    SIZE_t capacity):
-    """Build a pruned tree.
-
-    Build a pruned tree from the original tree by transforming the nodes in
-    ``leaves_in_subtree`` into leaves.
-
-    Parameters
-    ----------
-    tree : Tree
-        Location to place the pruned tree
-    orig_tree : Tree
-        Original tree
-    leaves_in_subtree : unsigned char memoryview, shape=(node_count, )
-        Boolean mask for leaves to include in subtree
-    capacity : SIZE_t
-        Number of nodes to initially allocate in pruned tree
-    """
-    tree._resize(capacity)
-
-    cdef:
-        SIZE_t orig_node_id
-        SIZE_t new_node_id
-        SIZE_t depth
-        SIZE_t parent
-        bint is_left
-        bint is_leaf
-
-        # value_stride for original tree and new tree are the same
-        SIZE_t value_stride = orig_tree.value_stride
-        SIZE_t max_depth_seen = -1
-        int rc = 0
-        Node* node
-        double* orig_value_ptr
-        double* new_value_ptr
-
-        # Only uses the start, depth, parent, and is_left variables
-        Stack stack = Stack(INITIAL_STACK_SIZE)
-        StackRecord stack_record
-
-    with nogil:
-        # push root node onto stack
-        rc = stack.push(0, 0, 0, _TREE_UNDEFINED, 0, 0.0, 0)
-        if rc == -1:
-            with gil:
-                raise MemoryError("pruning tree")
-
-        while not stack.is_empty():
-            stack.pop(&stack_record)
-
-            orig_node_id = stack_record.start
-            depth = stack_record.depth
-            parent = stack_record.parent
-            is_left = stack_record.is_left
-
-            is_leaf = leaves_in_subtree[orig_node_id]
-            node = &orig_tree.nodes[orig_node_id]
-
-            new_node_id = tree._add_node(
-                parent, is_left, is_leaf, node.feature, node.threshold,
-                node.impurity, node.n_node_samples,
-                node.weighted_n_node_samples,
-                node.surrogate_flip,
-                node.surrogate_threshold,
-                node.surrogate_feature, 
-                node.num_surrogates)
-
-            if new_node_id == SIZE_MAX:
-                rc = -1
-                break
-
-            # copy value from original tree to new tree
-            orig_value_ptr = orig_tree.value + value_stride * orig_node_id
-            new_value_ptr = tree.value + value_stride * new_node_id
-            memcpy(new_value_ptr, orig_value_ptr, sizeof(double) * value_stride)
-
-            if not is_leaf:
-                # Push right child on stack
-                rc = stack.push(
-                    node.right_child, 0, depth + 1, new_node_id, 0, 0.0, 0)
-                if rc == -1:
-                    break
-
-                # push left child on stack
-                rc = stack.push(
-                    node.left_child, 0, depth + 1, new_node_id, 1, 0.0, 0)
-                if rc == -1:
-                    break
-
-            if depth > max_depth_seen:
-                max_depth_seen = depth
-
-        if rc >= 0:
-            tree.max_depth = max_depth_seen
-    if rc == -1:
-        raise MemoryError("pruning tree")

@@ -45,10 +45,10 @@ from contextlib import redirect_stdout
 from ._criterion import Criterion
 from ._splitter import Splitter
 from ._tree import DepthFirstTreeBuilder
-from ._tree import BestFirstTreeBuilder
+# from ._tree import BestFirstTreeBuilder
 from ._tree import Tree
-from ._tree import _build_pruned_tree_ccp
-from ._tree import ccp_pruning_path
+# from ._tree import _build_pruned_tree_ccp
+# from ._tree import ccp_pruning_path
 from . import _tree, _splitter, _criterion
 
 
@@ -1060,6 +1060,10 @@ class DecisionTreeClassifier(ClassifierMixin, BaseDecisionTree):
                 all_proba.append(proba_k)
 
             return all_proba
+
+    def mcr_freeze(self, var_idx, force_use):
+    
+        self.tree_.mcr_freeze( var_idx,  force_use )
 
 
     def predict_proba(self, X, check_input=True):

@@ -1,3 +1,5 @@
+#cython: language_level=3
+
 # Authors: Gilles Louppe <g.louppe@gmail.com>
 #          Peter Prettenhofer <peter.prettenhofer@gmail.com>
 #          Brian Holt <bdholt1@gmail.com>
@@ -35,7 +37,7 @@ cdef struct Node:
     SIZE_t n_node_samples                # Number of samples at the node
     DOUBLE_t weighted_n_node_samples     # Weighted number of samples at the node
     SIZE_t surrogate_flip[100]  # For surrogates it indicates if the condition needs to be flipped. (-1 if it does, 1 if not)
-    DTYPE_t surrogate_threshold[100]  # 
+    DOUBLE_t surrogate_threshold[100]  # 
     SIZE_t surrogate_feature[100]  # 
     SIZE_t num_surrogates
 
@@ -61,18 +63,20 @@ cdef class Tree:
     cdef SIZE_t value_stride             # = n_outputs * max_n_classes
 
     # Methods
+    cpdef void mcr_freeze(self, int var_idx, bint force_use ) 
+    
     cdef SIZE_t _add_node(self, SIZE_t parent, bint is_left, bint is_leaf,
                           SIZE_t feature, double threshold, double impurity,
                           SIZE_t n_node_samples,
                           double weighted_n_samples,SIZE_t* surrogate_flip,
-                          DTYPE_t* surrogate_threshold,
+                          DOUBLE_t* surrogate_threshold,
                           SIZE_t* surrogate_feature, 
                           SIZE_t num_surrogates) nogil except -1
     cdef int _resize(self, SIZE_t capacity) nogil except -1
     cdef int _resize_c(self, SIZE_t capacity=*) nogil except -1
 
     cdef np.ndarray _get_value_ndarray(self)
-    cdef np.ndarray _get_node_ndarray(self)
+    cpdef np.ndarray _get_node_ndarray(self)
 
     cpdef np.ndarray predict(self, object X)
     cpdef np.ndarray predict_vim(self, object X, object permuted_vars, int mcr_type)
@@ -120,4 +124,4 @@ cdef class TreeBuilder:
     cpdef build(self, Tree tree, object X, np.ndarray y,
                 np.ndarray sample_weight=*,
                 np.ndarray X_idx_sorted=*)
-    cdef _check_input(self, object X, np.ndarray y, np.ndarray sample_weight)
+    cdef _check_input(self, object X, np.ndarray y, np.ndarray sample_weight) 
