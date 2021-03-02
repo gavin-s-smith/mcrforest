@@ -70,6 +70,7 @@ import pandas as pd
 from tqdm import tqdm
 import io
 from contextlib import redirect_stdout
+from matplotlib.backends.backend_pdf import PdfPages
 
 __all__ = ["RandomForestClassifier",
            "RandomForestRegressor",
@@ -846,7 +847,7 @@ class BaseForest(MultiOutputMixin, BaseEnsemble, metaclass=ABCMeta):
         
         return np.asarray(pre, dtype = np.int64), np.asarray(others, dtype = np.int64), np.asarray(post, dtype = np.int64)
 
-    def plot_mcr(self,X_in, y_in, feature_names = None, feature_groups_of_interest = 'all individual features', num_times = 100, show_fig = True, use_cache = False):
+    def plot_mcr(self,X_in, y_in, feature_names = None, feature_groups_of_interest = 'all individual features', num_times = 100, show_fig = True, pdf_file = None, use_cache = False):
             
         """
         Compute the required information for an MCR plot and optionally display the MCR plot.
@@ -868,6 +869,8 @@ class BaseForest(MultiOutputMixin, BaseEnsemble, metaclass=ABCMeta):
                 The number of permutations to use when computing the MCR.
         show_fig : bool
                 If True show the MCR graph. In either case a dataframe with the information that would have been shown in the graph is returned.
+        pdf_file: str
+                If not None, a path to save a pdf of the graph to.
         use_cache: bool
                 If True save the resulting MCR frame to the variable self.mcr_cache using the USE/AVOID human readable history string.
         Returns
@@ -962,6 +965,10 @@ class BaseForest(MultiOutputMixin, BaseEnsemble, metaclass=ABCMeta):
         plot_mcr_graph(rf_results2)
         if show_fig:
             plt.show()
+        
+        if not pdf_file is None:
+            with PdfPages(pdf_file) as pdf:
+                pdf.savefig()
 
         if use_cache:
             self.mcr_cache[f'-->{",".join(self.human_readable_history)}'] = rf_results2
