@@ -33,7 +33,7 @@ cdef struct Node:
     SIZE_t n_node_samples                # Number of samples at the node
     DOUBLE_t weighted_n_node_samples     # Weighted number of samples at the node
     SIZE_t surrogate_flip[100]  # For surrogates it indicates if the condition needs to be flipped. (-1 if it does, 1 if not)
-    DTYPE_t surrogate_threshold[100]  # 
+    DOUBLE_t surrogate_threshold[100]  # 
     SIZE_t surrogate_feature[100]  # 
     SIZE_t num_surrogates
 
@@ -63,7 +63,7 @@ cdef class Tree:
                           SIZE_t feature, double threshold, double impurity,
                           SIZE_t n_node_samples,
                           double weighted_n_samples,SIZE_t* surrogate_flip,
-                          DTYPE_t* surrogate_threshold,
+                          DOUBLE_t* surrogate_threshold,
                           SIZE_t* surrogate_feature, 
                           SIZE_t num_surrogates) nogil except -1
     cdef int _resize(self, SIZE_t capacity) nogil except -1

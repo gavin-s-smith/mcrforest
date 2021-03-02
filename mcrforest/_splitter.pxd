@@ -31,7 +31,7 @@ cdef struct SplitRecord:
     double impurity_left   # Impurity of the left split.
     double impurity_right  # Impurity of the right split.
     SIZE_t surrogate_flip[100]  # For surrogates it indicates if the condition needs to be flipped. (-1 if it does, 1 if not)
-    DTYPE_t surrogate_threshold[100]  # 
+    DOUBLE_t surrogate_threshold[100]  # 
     SIZE_t surrogate_feature[100]  # 
     SIZE_t num_surrogates
 

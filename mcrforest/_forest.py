@@ -2564,6 +2564,12 @@ class RandomForestRegressor(ForestRegressor):
         self.min_impurity_split = min_impurity_split
         self.ccp_alpha = ccp_alpha
 
+        if ccp_alpha != 0:
+            raise Exception('Currently ccp_alpha is not supported.')
+
+        if max_leaf_nodes >=0:
+            raise Exception('Currently max_leaf_nodes is not supported.')
+
         self.spoof_as_sklearn = spoof_as_sklearn
         if spoof_as_sklearn:
             from sklearn.ensemble import RandomForestRegressor as sklrfr
