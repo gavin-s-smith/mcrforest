@@ -360,13 +360,14 @@ class BaseDecisionTree(MultiOutputMixin, BaseEstimator, metaclass=ABCMeta):
                                             self.min_impurity_decrease,
                                             min_impurity_split)
         else:
-            builder = BestFirstTreeBuilder(splitter, min_samples_split,
-                                           min_samples_leaf,
-                                           min_weight_leaf,
-                                           max_depth,
-                                           max_leaf_nodes,
-                                           self.min_impurity_decrease,
-                                           min_impurity_split)
+            raise Exception('max_leaf_nodes is not supported for MCR.')
+            # builder = BestFirstTreeBuilder(splitter, min_samples_split,
+            #                                min_samples_leaf,
+            #                                min_weight_leaf,
+            #                                max_depth,
+            #                                max_leaf_nodes,
+            #                                self.min_impurity_decrease,
+            #                                min_impurity_split)
 
 
         # if self.random_state == 1388158777:
