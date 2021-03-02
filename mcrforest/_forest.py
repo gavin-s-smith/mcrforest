@@ -68,10 +68,11 @@ from itertools import permutations
 import pandas as pd
 
 __all__ = ["RandomForestClassifier",
-           "RandomForestRegressor",
-           "ExtraTreesClassifier",
-           "ExtraTreesRegressor",
-           "RandomTreesEmbedding"]
+           "RandomForestRegressor"]
+        #    ,
+        #    "ExtraTreesClassifier",
+        #    "ExtraTreesRegressor",
+        #    "RandomTreesEmbedding"]
 
 MAX_INT = np.iinfo(np.int32).max
 
