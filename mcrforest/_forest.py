@@ -72,6 +72,8 @@ import io
 from contextlib import redirect_stdout
 from matplotlib.backends.backend_pdf import PdfPages
 
+
+
 __all__ = ["RandomForestClassifier",
            "RandomForestRegressor",
            "ExtraTreesClassifier",
@@ -630,7 +632,8 @@ class BaseForest(MultiOutputMixin, BaseEnsemble, metaclass=ABCMeta):
                 if i_ntrees in equally_best_worst_tree_set:
                     new_trees_indexes.append( i_ntrees ) 
                 else:
-                    new_trees_indexes.append( equally_best_worst_tree_set[0] ) # take a random one
+                    select_idx = np.random.randint(0, high=len(equally_best_worst_tree_set), size=None, dtype=int)
+                    new_trees_indexes.append( equally_best_worst_tree_set[select_idx] ) # take a random one
 
                 # set the list of trees that (1) has equal predictive performance and (2) relies on the varaible (set) of interest to the
                 # same degree (where same is defined byt the above threshold)
@@ -689,11 +692,14 @@ class BaseForest(MultiOutputMixin, BaseEnsemble, metaclass=ABCMeta):
         #     print('WANRING: CURRENTLY FOR v2: len(indices_to_permute) > 1 IS EXPERIMENTAL ')
         if mcr_type < 0:
             self.estimators_m[str(indices_to_permute)] = np.asarray(real_estimators_)[new_trees_indexes]
-            self.new_tree_equivilents_m[str(indices_to_permute)] = np.copy(new_tree_equivilents)
+            self.new_tree_equivilents_m[str(indices_to_permute)] = [np.copy(x) for x in new_tree_equivilents]
         else:
             #print(f'Setting: self.estimators_p[str(indices_to_permute)]: {str(indices_to_permute)}')
             self.estimators_p[str(indices_to_permute)] = np.asarray(real_estimators_)[new_trees_indexes]
-            self.new_tree_equivilents_p[str(indices_to_permute)] = np.copy(new_tree_equivilents)
+            # print(f'est ----> {new_trees_indexes}')
+            # print(f'type ----> {type(new_tree_equivilents)}')
+            # print(f'----> {new_tree_equivilents}')
+            self.new_tree_equivilents_p[str(indices_to_permute)] = [ np.copy(x) for x in new_tree_equivilents ]
 
         # Check if we are still in the Rashomon set
         new_forest_orig_data_score = forest_scorer(X)
