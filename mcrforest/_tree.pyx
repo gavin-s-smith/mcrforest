@@ -1145,304 +1145,306 @@ cdef class Tree:
         return out
 
     cdef inline np.ndarray _apply_dense_surrogate(self, object X, object permuted_vars, int mcr_type):
+
+        raise Exception('This method should not be used currently')
         """Finds the terminal region (=leaf node) for each sample in X."""
 
-        # Check input
-        if not isinstance(X, np.ndarray):
-            raise ValueError("X should be in np.ndarray format, got %s"
-                             % type(X))
+        # # Check input
+        # if not isinstance(X, np.ndarray):
+        #     raise ValueError("X should be in np.ndarray format, got %s"
+        #                      % type(X))
 
-        if X.dtype != DTYPE:
-            raise ValueError("X.dtype should be np.float32, got %s" % X.dtype)
+        # if X.dtype != DTYPE:
+        #     raise ValueError("X.dtype should be np.float32, got %s" % X.dtype)
 
-        # Extract input
-        cdef const DTYPE_t[:, :] X_ndarray = X
-        cdef SIZE_t n_samples = X.shape[0]
+        # # Extract input
+        # cdef const DTYPE_t[:, :] X_ndarray = X
+        # cdef SIZE_t n_samples = X.shape[0]
 
-        cdef SIZE_t c_mcr_type = mcr_type
-        cdef const SIZE_t[:] perm_vars = permuted_vars
-        cdef SIZE_t n_permvars = len(permuted_vars)
-        cdef SIZE_t feature_to_use = 0
-        cdef DTYPE_t threshold_to_use = 0
-        # Initialize output
-        cdef np.ndarray[SIZE_t] out = np.zeros((n_samples,), dtype=np.intp)
-        cdef SIZE_t* out_ptr = <SIZE_t*> out.data
+        # cdef SIZE_t c_mcr_type = mcr_type
+        # cdef const SIZE_t[:] perm_vars = permuted_vars
+        # cdef SIZE_t n_permvars = len(permuted_vars)
+        # cdef SIZE_t feature_to_use = 0
+        # cdef DTYPE_t threshold_to_use = 0
+        # # Initialize output
+        # cdef np.ndarray[SIZE_t] out = np.zeros((n_samples,), dtype=np.intp)
+        # cdef SIZE_t* out_ptr = <SIZE_t*> out.data
 
-        # Initialize auxiliary data-structure
-        cdef Node* node = NULL
-        cdef SIZE_t i = 0
+        # # Initialize auxiliary data-structure
+        # cdef Node* node = NULL
+        # cdef SIZE_t i = 0
 
-        cdef int found = 0
-        cdef int do_not_flip = 1 # 1 is don't flip, -1 is flip.  
+        # cdef int found = 0
+        # cdef int do_not_flip = 1 # 1 is don't flip, -1 is flip.  
 
-        # Gavin added
-        cdef int num_in_queue = 0
+        # # Gavin added
+        # cdef int num_in_queue = 0
         
-        cdef np.ndarray[SIZE_t] node_entry_list = np.zeros((n_samples,), dtype=np.intp)
-        cdef SIZE_t* node_entry_list_ptr = <SIZE_t*> node_entry_list.data
+        # cdef np.ndarray[SIZE_t] node_entry_list = np.zeros((n_samples,), dtype=np.intp)
+        # cdef SIZE_t* node_entry_list_ptr = <SIZE_t*> node_entry_list.data
 
-        cdef np.ndarray[SIZE_t] var_idx_list = np.zeros((n_samples,), dtype=np.intp)
-        cdef SIZE_t* var_idx_list_ptr = <SIZE_t*> var_idx_list.data
+        # cdef np.ndarray[SIZE_t] var_idx_list = np.zeros((n_samples,), dtype=np.intp)
+        # cdef SIZE_t* var_idx_list_ptr = <SIZE_t*> var_idx_list.data
 
 
-        #print('Number of permuted variables: {}'.format(n_permvars))
-        #print('MCR TYPE: {}'.format(c_mcr_type))
+        # #print('Number of permuted variables: {}'.format(n_permvars))
+        # #print('MCR TYPE: {}'.format(c_mcr_type))
 
-        with nogil:
-            for i in range(n_samples):
-                #with gil:
-                #    print('\n========== CONSIDERING SAMPLE {} ================'.format(i))
-                #node = self.nodes
+        # with nogil:
+        #     for i in range(n_samples):
+        #         #with gil:
+        #         #    print('\n========== CONSIDERING SAMPLE {} ================'.format(i))
+        #         #node = self.nodes
                 
-                # num_in_queue = 0 at this point
-                node_entry_list_ptr[num_in_queue] = self.nodes
-                var_idx_list_ptr[num_in_queue] = 0
-                num_in_queue += 1
+        #         # num_in_queue = 0 at this point
+        #         node_entry_list_ptr[num_in_queue] = self.nodes
+        #         var_idx_list_ptr[num_in_queue] = 0
+        #         num_in_queue += 1
 
-                while num_in_queue > 0:
+        #         while num_in_queue > 0:
 
-                    num_in_queue -= 1
-                    node = node_entry_list_ptr[num_in_queue]
+        #             num_in_queue -= 1
+        #             node = node_entry_list_ptr[num_in_queue]
 
-                    # While node not a leaf
-                    while node.left_child != _TREE_LEAF:
-                        # ... and node.right_child != _TREE_LEAF:
-                        #with gil:
-                        #    print('-------------->{}'.format(node.num_surrogates))
+        #             # While node not a leaf
+        #             while node.left_child != _TREE_LEAF:
+        #                 # ... and node.right_child != _TREE_LEAF:
+        #                 #with gil:
+        #                 #    print('-------------->{}'.format(node.num_surrogates))
                     
-                        do_not_flip = 1 
-                        feature_to_use = node.feature
-                        threshold_to_use = node.threshold
+        #                 do_not_flip = 1 
+        #                 feature_to_use = node.feature
+        #                 threshold_to_use = node.threshold
 
-                        found = 0
-                        # TODO: Speed this up using hashmaps.
-                        if c_mcr_type > 0: # MCR+
-                        # force the use of permuted features
+        #                 found = 0
+        #                 # TODO: Speed this up using hashmaps.
+        #                 if c_mcr_type > 0: # MCR+
+        #                 # force the use of permuted features
 
-                            # If real split is in the perm set
-                            for ig in range(n_permvars):
-                                if feature_to_use == perm_vars[ig]:
-                                    found = 1
-                                    #with gil:
-                                    #    print('Split was already the var of interest: MCR+. USING: Feature: {}, Thresh: {}, Flip: {}'.format(feature_to_use, threshold_to_use,do_not_flip))
-                                    break
+        #                     # If real split is in the perm set
+        #                     for ig in range(n_permvars):
+        #                         if feature_to_use == perm_vars[ig]:
+        #                             found = 1
+        #                             #with gil:
+        #                             #    print('Split was already the var of interest: MCR+. USING: Feature: {}, Thresh: {}, Flip: {}'.format(feature_to_use, threshold_to_use,do_not_flip))
+        #                             break
                             
-                            # otherwise
-                            if found == 0:
-                                for iga in range(node.num_surrogates):
-                                # search all of the surrogates
-                                    for ig in range(n_permvars):
-                                    # for the surrogate we are checking, does it match a var in the perm set?
-                                        if node.surrogate_feature[iga] == perm_vars[ig]:
-                                            found = 1
-                                            break
-                                    if found == 1:
-                                        feature_to_use = node.surrogate_feature[iga] 
-                                        threshold_to_use = node.surrogate_threshold[iga] 
-                                        do_not_flip = node.surrogate_flip[iga] # yes this is correct surrogate_flip[x] = 1 means don't flip
-                                        #with gil:
-                                        #        print('Forcing use of surrogate: MCR+. Feature: {}, Thresh: {}, Flip: {}'.format(feature_to_use, threshold_to_use,do_not_flip))
-                                        break
+        #                     # otherwise
+        #                     if found == 0:
+        #                         for iga in range(node.num_surrogates):
+        #                         # search all of the surrogates
+        #                             for ig in range(n_permvars):
+        #                             # for the surrogate we are checking, does it match a var in the perm set?
+        #                                 if node.surrogate_feature[iga] == perm_vars[ig]:
+        #                                     found = 1
+        #                                     break
+        #                             if found == 1:
+        #                                 feature_to_use = node.surrogate_feature[iga] 
+        #                                 threshold_to_use = node.surrogate_threshold[iga] 
+        #                                 do_not_flip = node.surrogate_flip[iga] # yes this is correct surrogate_flip[x] = 1 means don't flip
+        #                                 #with gil:
+        #                                 #        print('Forcing use of surrogate: MCR+. Feature: {}, Thresh: {}, Flip: {}'.format(feature_to_use, threshold_to_use,do_not_flip))
+        #                                 break
 
-                            #if found == 0:
-                            #    with gil:
-                            #        print('Did not find an alternative, using var that is not the var of interest. Feature: {}, Thresh: {}, Flip: {}'.format(feature_to_use, threshold_to_use,do_not_flip))
+        #                     #if found == 0:
+        #                     #    with gil:
+        #                     #        print('Did not find an alternative, using var that is not the var of interest. Feature: {}, Thresh: {}, Flip: {}'.format(feature_to_use, threshold_to_use,do_not_flip))
 
-                        if c_mcr_type < 0: # MCR-
+        #                 if c_mcr_type < 0: # MCR-
 
-                        # avoid the use of the permuted features
-                            found = 0
-                            # If real split is in the perm set
-                            for ig in range(n_permvars):
-                                if feature_to_use == perm_vars[ig]:
-                                    found = 1
-                                    break
+        #                 # avoid the use of the permuted features
+        #                     found = 0
+        #                     # If real split is in the perm set
+        #                     for ig in range(n_permvars):
+        #                         if feature_to_use == perm_vars[ig]:
+        #                             found = 1
+        #                             break
                             
-                            if found == 1:
-                                # look for an alternative from surrogates that is not perm
-                                for iga in range(node.num_surrogates):
-                                    found = 0
-                                    for ig in range(n_permvars):
-                                        if node.surrogate_feature[iga] == perm_vars[ig]:
-                                            found = 1
+        #                     if found == 1:
+        #                         # look for an alternative from surrogates that is not perm
+        #                         for iga in range(node.num_surrogates):
+        #                             found = 0
+        #                             for ig in range(n_permvars):
+        #                                 if node.surrogate_feature[iga] == perm_vars[ig]:
+        #                                     found = 1
                                     
-                                    if found == 0: # i.e. we found a surrogate that was not in the perm set use it instead
-                                        feature_to_use = node.surrogate_feature[iga] 
-                                        threshold_to_use = node.surrogate_threshold[iga] 
-                                        do_not_flip = node.surrogate_flip[iga] # yes this is correct surrogate_flip[x] = 1 means don't flip
-                                        found = 9999
-                                        #with gil:
-                                        #    print('AVOIDING the variables of interest. Using feature: {}, Thresh: {}, Flip: {}'.format(feature_to_use, threshold_to_use,do_not_flip))
+        #                             if found == 0: # i.e. we found a surrogate that was not in the perm set use it instead
+        #                                 feature_to_use = node.surrogate_feature[iga] 
+        #                                 threshold_to_use = node.surrogate_threshold[iga] 
+        #                                 do_not_flip = node.surrogate_flip[iga] # yes this is correct surrogate_flip[x] = 1 means don't flip
+        #                                 found = 9999
+        #                                 #with gil:
+        #                                 #    print('AVOIDING the variables of interest. Using feature: {}, Thresh: {}, Flip: {}'.format(feature_to_use, threshold_to_use,do_not_flip))
 
-                                        break
-                            #if found < 99:
-                                #with gil:
-                                #    print('Did not find an alternative, using var that is not the var of interest. Feature: {}, Thresh: {}, Flip: {}'.format(feature_to_use, threshold_to_use,do_not_flip))
+        #                                 break
+        #                     #if found < 99:
+        #                         #with gil:
+        #                         #    print('Did not find an alternative, using var that is not the var of interest. Feature: {}, Thresh: {}, Flip: {}'.format(feature_to_use, threshold_to_use,do_not_flip))
                     
 
-                        if do_not_flip == 1:
-                            #with gil:
-                            #    if i == 0:
-                            #        print('Considering feature: {}] {} <= {}. If True: going LEFT.'.format(feature_to_use, X_ndarray[i, feature_to_use], threshold_to_use))
-                            if X_ndarray[i, feature_to_use] <= threshold_to_use:
-                                node = &self.nodes[node.left_child]
-                            else:
-                                node = &self.nodes[node.right_child]
-                        else:
-                            #with gil:
-                            #    if i == 0:
-                            #        print('Considering feature: {}] {} <= {}. If True: going RIGHT.'.format(feature_to_use, X_ndarray[i, feature_to_use], threshold_to_use))
-                            if X_ndarray[i, feature_to_use] <= threshold_to_use:
-                                node = &self.nodes[node.right_child]
-                            else:
-                                node = &self.nodes[node.left_child]
+        #                 if do_not_flip == 1:
+        #                     #with gil:
+        #                     #    if i == 0:
+        #                     #        print('Considering feature: {}] {} <= {}. If True: going LEFT.'.format(feature_to_use, X_ndarray[i, feature_to_use], threshold_to_use))
+        #                     if X_ndarray[i, feature_to_use] <= threshold_to_use:
+        #                         node = &self.nodes[node.left_child]
+        #                     else:
+        #                         node = &self.nodes[node.right_child]
+        #                 else:
+        #                     #with gil:
+        #                     #    if i == 0:
+        #                     #        print('Considering feature: {}] {} <= {}. If True: going RIGHT.'.format(feature_to_use, X_ndarray[i, feature_to_use], threshold_to_use))
+        #                     if X_ndarray[i, feature_to_use] <= threshold_to_use:
+        #                         node = &self.nodes[node.right_child]
+        #                     else:
+        #                         node = &self.nodes[node.left_child]
 
-                    out_ptr[i] = <SIZE_t>(node - self.nodes)  # node offset
+        #             out_ptr[i] = <SIZE_t>(node - self.nodes)  # node offset
 
         
-        #print('===> {}'.format(out))
+        # #print('===> {}'.format(out))
 
-        return out
+        # return out
 
 
-    cdef inline np.ndarray _apply_dense_surrogate_orig(self, object X, object permuted_vars, int mcr_type):
-        """Finds the terminal region (=leaf node) for each sample in X."""
+    # cdef inline np.ndarray _apply_dense_surrogate_orig(self, object X, object permuted_vars, int mcr_type):
+    #     """Finds the terminal region (=leaf node) for each sample in X."""
 
-        # Check input
-        if not isinstance(X, np.ndarray):
-            raise ValueError("X should be in np.ndarray format, got %s"
-                             % type(X))
+    #     # Check input
+    #     if not isinstance(X, np.ndarray):
+    #         raise ValueError("X should be in np.ndarray format, got %s"
+    #                          % type(X))
 
-        if X.dtype != DTYPE:
-            raise ValueError("X.dtype should be np.float32, got %s" % X.dtype)
+    #     if X.dtype != DTYPE:
+    #         raise ValueError("X.dtype should be np.float32, got %s" % X.dtype)
 
-        # Extract input
-        cdef const DTYPE_t[:, :] X_ndarray = X
-        cdef SIZE_t n_samples = X.shape[0]
+    #     # Extract input
+    #     cdef const DTYPE_t[:, :] X_ndarray = X
+    #     cdef SIZE_t n_samples = X.shape[0]
 
-        cdef SIZE_t c_mcr_type = mcr_type
-        cdef const SIZE_t[:] perm_vars = permuted_vars
-        cdef SIZE_t n_permvars = len(permuted_vars)
-        cdef SIZE_t feature_to_use = 0
-        cdef DTYPE_t threshold_to_use = 0
-        # Initialize output
-        cdef np.ndarray[SIZE_t] out = np.zeros((n_samples,), dtype=np.intp)
-        cdef SIZE_t* out_ptr = <SIZE_t*> out.data
+    #     cdef SIZE_t c_mcr_type = mcr_type
+    #     cdef const SIZE_t[:] perm_vars = permuted_vars
+    #     cdef SIZE_t n_permvars = len(permuted_vars)
+    #     cdef SIZE_t feature_to_use = 0
+    #     cdef DTYPE_t threshold_to_use = 0
+    #     # Initialize output
+    #     cdef np.ndarray[SIZE_t] out = np.zeros((n_samples,), dtype=np.intp)
+    #     cdef SIZE_t* out_ptr = <SIZE_t*> out.data
 
-        # Initialize auxiliary data-structure
-        cdef Node* node = NULL
-        cdef SIZE_t i = 0
+    #     # Initialize auxiliary data-structure
+    #     cdef Node* node = NULL
+    #     cdef SIZE_t i = 0
 
-        cdef int found = 0
-        cdef int do_not_flip = 1 # 1 is don't flip, -1 is flip.  
+    #     cdef int found = 0
+    #     cdef int do_not_flip = 1 # 1 is don't flip, -1 is flip.  
 
-        #print('Number of permuted variables: {}'.format(n_permvars))
-        #print('MCR TYPE: {}'.format(c_mcr_type))
+    #     #print('Number of permuted variables: {}'.format(n_permvars))
+    #     #print('MCR TYPE: {}'.format(c_mcr_type))
 
-        with nogil:
-            for i in range(n_samples):
-                #with gil:
-                #    print('\n========== CONSIDERING SAMPLE {} ================'.format(i))
-                node = self.nodes
-                # While node not a leaf
-                while node.left_child != _TREE_LEAF:
-                    # ... and node.right_child != _TREE_LEAF:
-                    #with gil:
-                    #    print('-------------->{}'.format(node.num_surrogates))
+    #     with nogil:
+    #         for i in range(n_samples):
+    #             #with gil:
+    #             #    print('\n========== CONSIDERING SAMPLE {} ================'.format(i))
+    #             node = self.nodes
+    #             # While node not a leaf
+    #             while node.left_child != _TREE_LEAF:
+    #                 # ... and node.right_child != _TREE_LEAF:
+    #                 #with gil:
+    #                 #    print('-------------->{}'.format(node.num_surrogates))
                   
-                    do_not_flip = 1 
-                    feature_to_use = node.feature
-                    threshold_to_use = node.threshold
+    #                 do_not_flip = 1 
+    #                 feature_to_use = node.feature
+    #                 threshold_to_use = node.threshold
 
-                    found = 0
-                    # TODO: Speed this up using hashmaps.
-                    if c_mcr_type > 0: # MCR+
-                    # force the use of permuted features
+    #                 found = 0
+    #                 # TODO: Speed this up using hashmaps.
+    #                 if c_mcr_type > 0: # MCR+
+    #                 # force the use of permuted features
 
-                        # If real split is in the perm set
-                        for ig in range(n_permvars):
-                            if feature_to_use == perm_vars[ig]:
-                                found = 1
-                                #with gil:
-                                #    print('Split was already the var of interest: MCR+. USING: Feature: {}, Thresh: {}, Flip: {}'.format(feature_to_use, threshold_to_use,do_not_flip))
-                                break
+    #                     # If real split is in the perm set
+    #                     for ig in range(n_permvars):
+    #                         if feature_to_use == perm_vars[ig]:
+    #                             found = 1
+    #                             #with gil:
+    #                             #    print('Split was already the var of interest: MCR+. USING: Feature: {}, Thresh: {}, Flip: {}'.format(feature_to_use, threshold_to_use,do_not_flip))
+    #                             break
                         
-                        # otherwise
-                        if found == 0:
-                            for iga in range(node.num_surrogates):
-                            # search all of the surrogates
-                                for ig in range(n_permvars):
-                                # for the surrogate we are checking, does it match a var in the perm set?
-                                    if node.surrogate_feature[iga] == perm_vars[ig]:
-                                        found = 1
-                                        break
-                                if found == 1:
-                                    feature_to_use = node.surrogate_feature[iga] 
-                                    threshold_to_use = node.surrogate_threshold[iga] 
-                                    do_not_flip = node.surrogate_flip[iga] # yes this is correct surrogate_flip[x] = 1 means don't flip
-                                    #with gil:
-                                    #        print('Forcing use of surrogate: MCR+. Feature: {}, Thresh: {}, Flip: {}'.format(feature_to_use, threshold_to_use,do_not_flip))
-                                    break
+    #                     # otherwise
+    #                     if found == 0:
+    #                         for iga in range(node.num_surrogates):
+    #                         # search all of the surrogates
+    #                             for ig in range(n_permvars):
+    #                             # for the surrogate we are checking, does it match a var in the perm set?
+    #                                 if node.surrogate_feature[iga] == perm_vars[ig]:
+    #                                     found = 1
+    #                                     break
+    #                             if found == 1:
+    #                                 feature_to_use = node.surrogate_feature[iga] 
+    #                                 threshold_to_use = node.surrogate_threshold[iga] 
+    #                                 do_not_flip = node.surrogate_flip[iga] # yes this is correct surrogate_flip[x] = 1 means don't flip
+    #                                 #with gil:
+    #                                 #        print('Forcing use of surrogate: MCR+. Feature: {}, Thresh: {}, Flip: {}'.format(feature_to_use, threshold_to_use,do_not_flip))
+    #                                 break
 
-                        #if found == 0:
-                        #    with gil:
-                        #        print('Did not find an alternative, using var that is not the var of interest. Feature: {}, Thresh: {}, Flip: {}'.format(feature_to_use, threshold_to_use,do_not_flip))
+    #                     #if found == 0:
+    #                     #    with gil:
+    #                     #        print('Did not find an alternative, using var that is not the var of interest. Feature: {}, Thresh: {}, Flip: {}'.format(feature_to_use, threshold_to_use,do_not_flip))
 
-                    if c_mcr_type < 0: # MCR-
+    #                 if c_mcr_type < 0: # MCR-
 
-                    # avoid the use of the permuted features
-                        found = 0
-                        # If real split is in the perm set
-                        for ig in range(n_permvars):
-                            if feature_to_use == perm_vars[ig]:
-                                found = 1
-                                break
+    #                 # avoid the use of the permuted features
+    #                     found = 0
+    #                     # If real split is in the perm set
+    #                     for ig in range(n_permvars):
+    #                         if feature_to_use == perm_vars[ig]:
+    #                             found = 1
+    #                             break
                         
-                        if found == 1:
-                            # look for an alternative from surrogates that is not perm
-                            for iga in range(node.num_surrogates):
-                                found = 0
-                                for ig in range(n_permvars):
-                                    if node.surrogate_feature[iga] == perm_vars[ig]:
-                                        found = 1
+    #                     if found == 1:
+    #                         # look for an alternative from surrogates that is not perm
+    #                         for iga in range(node.num_surrogates):
+    #                             found = 0
+    #                             for ig in range(n_permvars):
+    #                                 if node.surrogate_feature[iga] == perm_vars[ig]:
+    #                                     found = 1
                                 
-                                if found == 0: # i.e. we found a surrogate that was not in the perm set use it instead
-                                    feature_to_use = node.surrogate_feature[iga] 
-                                    threshold_to_use = node.surrogate_threshold[iga] 
-                                    do_not_flip = node.surrogate_flip[iga] # yes this is correct surrogate_flip[x] = 1 means don't flip
-                                    found = 9999
-                                    #with gil:
-                                    #    print('AVOIDING the variables of interest. Using feature: {}, Thresh: {}, Flip: {}'.format(feature_to_use, threshold_to_use,do_not_flip))
+    #                             if found == 0: # i.e. we found a surrogate that was not in the perm set use it instead
+    #                                 feature_to_use = node.surrogate_feature[iga] 
+    #                                 threshold_to_use = node.surrogate_threshold[iga] 
+    #                                 do_not_flip = node.surrogate_flip[iga] # yes this is correct surrogate_flip[x] = 1 means don't flip
+    #                                 found = 9999
+    #                                 #with gil:
+    #                                 #    print('AVOIDING the variables of interest. Using feature: {}, Thresh: {}, Flip: {}'.format(feature_to_use, threshold_to_use,do_not_flip))
 
-                                    break
-                        #if found < 99:
-                            #with gil:
-                            #    print('Did not find an alternative, using var that is not the var of interest. Feature: {}, Thresh: {}, Flip: {}'.format(feature_to_use, threshold_to_use,do_not_flip))
+    #                                 break
+    #                     #if found < 99:
+    #                         #with gil:
+    #                         #    print('Did not find an alternative, using var that is not the var of interest. Feature: {}, Thresh: {}, Flip: {}'.format(feature_to_use, threshold_to_use,do_not_flip))
                    
 
-                    if do_not_flip == 1:
-                        #with gil:
-                        #    if i == 0:
-                        #        print('Considering feature: {}] {} <= {}. If True: going LEFT.'.format(feature_to_use, X_ndarray[i, feature_to_use], threshold_to_use))
-                        if X_ndarray[i, feature_to_use] <= threshold_to_use:
-                            node = &self.nodes[node.left_child]
-                        else:
-                            node = &self.nodes[node.right_child]
-                    else:
-                        #with gil:
-                        #    if i == 0:
-                        #        print('Considering feature: {}] {} <= {}. If True: going RIGHT.'.format(feature_to_use, X_ndarray[i, feature_to_use], threshold_to_use))
-                        if X_ndarray[i, feature_to_use] <= threshold_to_use:
-                            node = &self.nodes[node.right_child]
-                        else:
-                            node = &self.nodes[node.left_child]
+    #                 if do_not_flip == 1:
+    #                     #with gil:
+    #                     #    if i == 0:
+    #                     #        print('Considering feature: {}] {} <= {}. If True: going LEFT.'.format(feature_to_use, X_ndarray[i, feature_to_use], threshold_to_use))
+    #                     if X_ndarray[i, feature_to_use] <= threshold_to_use:
+    #                         node = &self.nodes[node.left_child]
+    #                     else:
+    #                         node = &self.nodes[node.right_child]
+    #                 else:
+    #                     #with gil:
+    #                     #    if i == 0:
+    #                     #        print('Considering feature: {}] {} <= {}. If True: going RIGHT.'.format(feature_to_use, X_ndarray[i, feature_to_use], threshold_to_use))
+    #                     if X_ndarray[i, feature_to_use] <= threshold_to_use:
+    #                         node = &self.nodes[node.right_child]
+    #                     else:
+    #                         node = &self.nodes[node.left_child]
 
-                out_ptr[i] = <SIZE_t>(node - self.nodes)  # node offset
+    #             out_ptr[i] = <SIZE_t>(node - self.nodes)  # node offset
 
         
-        #print('===> {}'.format(out))
+    #     #print('===> {}'.format(out))
 
-        return out
+    #     return out
 
 
 
