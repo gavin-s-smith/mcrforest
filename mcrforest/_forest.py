@@ -984,12 +984,12 @@ class BaseForest(MultiOutputMixin, BaseEnsemble, metaclass=ABCMeta):
 
 
     # GAVIN TODO: Integrate better
-    def permutation_importance_orig(self, X_in, y_in, indices_to_permute, permute, pre_permutated = False, num_times = 100, debug = False):
+    def unconditional_permutation_importance(self, X_in, y_in, indices_to_permute, permute, pre_permutated = False, num_times = 100, debug = False, random_state = 13111985):
         
         is_classification = is_classifier(self)
         
         """ Return the accuracy of the prediction of X compared to y. """
-        np.random.seed(13111985)
+        np.random.seed(random_state)
         if is_classification:
             base_score = self.score(X_in,y_in)
 
@@ -1003,9 +1003,6 @@ class BaseForest(MultiOutputMixin, BaseEnsemble, metaclass=ABCMeta):
 
         acc_set = []
      
-
-        for i_permidx in indices_to_permute:
-            np.random.shuffle(X_perm[:, i_permidx])
        
        # print('====d=========================')
         for i in range(num_times):
