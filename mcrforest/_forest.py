@@ -992,7 +992,7 @@ class BaseForest(MultiOutputMixin, BaseEnsemble, metaclass=ABCMeta):
         np.random.seed(13111985)
         if is_classification:
             base_score = self.score(X_in,y_in)
-            card_y = len(np.unique(y_in))
+
         else:
             if self.get_params()['criterion'] == 'mse':
                 base_score = mean_squared_error(y_in, self.predict(X_in))
@@ -1002,9 +1002,10 @@ class BaseForest(MultiOutputMixin, BaseEnsemble, metaclass=ABCMeta):
                 raise Exception('Unsupported criterion: {}'.format(self.get_params()['criterion']))
 
         acc_set = []
-        n_samples = len(y_in)
-        
-        n_trees = len(self.estimators_)
+     
+
+        for i_permidx in indices_to_permute:
+            np.random.shuffle(X_perm[:, i_permidx])
        
        # print('====d=========================')
         for i in range(num_times):
@@ -1013,11 +1014,8 @@ class BaseForest(MultiOutputMixin, BaseEnsemble, metaclass=ABCMeta):
             y = y_in.copy()
             if not pre_permutated:
                 for i in indices_to_permute:
-                    #print('==w===========================')
-                    inplace_permute_or_random_sample_with_replacement( X, i, permute = permute )
-                    #np.random.shuffle(X[:, i])
 
-
+                    np.random.shuffle(X[:, i])
 
             if is_classification:
                 # MDA
