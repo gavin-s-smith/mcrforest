@@ -984,7 +984,7 @@ class BaseForest(MultiOutputMixin, BaseEnsemble, metaclass=ABCMeta):
 
 
     # GAVIN TODO: Integrate better
-    def unconditional_permutation_importance(self, X_in, y_in, indices_to_permute, permute, pre_permutated = False, num_times = 100, debug = False, random_state = 13111985):
+    def unconditional_permutation_importance(self, X_in, y_in, feature_groups_of_interest, pre_permutated = False, num_times = 100, debug = False, random_state = 13111985):
         
         is_classification = is_classifier(self)
         
@@ -1001,36 +1001,37 @@ class BaseForest(MultiOutputMixin, BaseEnsemble, metaclass=ABCMeta):
             else:
                 raise Exception('Unsupported criterion: {}'.format(self.get_params()['criterion']))
 
-        acc_set = []
-     
-       
-       # print('====d=========================')
-        for i in range(num_times):
-            #print('==========ud==================: {}'.format(indices_to_permute))
-            X = X_in.copy()
-            y = y_in.copy()
-            if not pre_permutated:
-                for i in indices_to_permute:
+        
+        rtn_list = []
+        for indices_to_permute in feature_groups_of_interest:
+            acc_set = []
+        # print('====d=========================')
+            for i in range(num_times):
+                #print('==========ud==================: {}'.format(indices_to_permute))
+                X = X_in.copy()
+                y = y_in.copy()
+                if not pre_permutated:
+                    for i in indices_to_permute:
 
-                    np.random.shuffle(X[:, i])
+                        np.random.shuffle(X[:, i])
 
-            if is_classification:
-                # MDA
-                acc_set.append(base_score- self.score(X,y))
-                
-            else:
-                # Here we return Mean increase in Error (MIE)
-                if self.get_params()['criterion'] == 'mse':
-                    acc_set.append(mean_squared_error(y, self.predict(X)) - base_score)
-                elif self.get_params()['criterion'] == 'mae':
-                    acc_set.append(mean_absolute_error(y, self.predict(X)) - base_score)
+                if is_classification:
+                    # MDA
+                    acc_set.append(base_score- self.score(X,y))
+                    
                 else:
-                    raise Exception('Unsupported criterion: {}'.format(self.get_params()['criterion']))
-                
-        
-        mean_performace = np.mean(acc_set) #calculate the average accuracy
-        
-        return mean_performace #new
+                    # Here we return Mean increase in Error (MIE)
+                    if self.get_params()['criterion'] == 'mse':
+                        acc_set.append(mean_squared_error(y, self.predict(X)) - base_score)
+                    elif self.get_params()['criterion'] == 'mae':
+                        acc_set.append(mean_absolute_error(y, self.predict(X)) - base_score)
+                    else:
+                        raise Exception('Unsupported criterion: {}'.format(self.get_params()['criterion']))
+                    
+            
+            mean_performace = np.mean(acc_set) #calculate the average accuracy
+            rtn_list.append(mean_performance)
+        return rtn_list
 
 
 
