@@ -1050,12 +1050,12 @@ class BaseForest(MultiOutputMixin, BaseEnsemble, metaclass=ABCMeta):
 
         
         rtn_list = []
-        for indices_to_permute in groups_of_indicies_to_permute:
+        for indices_to_permute in tqdm(groups_of_indicies_to_permute):
             r_set = []
         # print('====d=========================')
             for i in range(num_times):
                 #print('==========ud==================: {}'.format(indices_to_permute))
-                X = X_in.copy()
+                X = X_in.values.copy()
                 y = y_in.copy()
                 if not pre_permutated:
                     for i in indices_to_permute:
