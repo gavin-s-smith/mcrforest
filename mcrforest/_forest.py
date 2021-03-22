@@ -984,10 +984,57 @@ class BaseForest(MultiOutputMixin, BaseEnsemble, metaclass=ABCMeta):
 
 
     # GAVIN TODO: Integrate better
-    def unconditional_permutation_importance(self, X_in, y_in, feature_groups_of_interest, pre_permutated = False, num_times = 100, debug = False, random_state = 13111985):
+    def unconditional_permutation_importance(self, X_in, y_in, feature_groups_of_interest, feature_names = None, pre_permutated = False, num_times = 100, debug = False, random_state = 13111985):
         
         is_classification = is_classifier(self)
         
+        if isinstance(X_in, pd.DataFrame):
+            X = X_in.values
+            if feature_names is None:
+                feature_names = X_in.columns.tolist()
+        else:
+            X = X_in
+            if feature_names is None:
+                feature_names = ['f_{}'.format(i) for i in range(X.shape[1])]
+
+        
+        if isinstance(y_in, pd.DataFrame) or isinstance(y_in, pd.core.series.Series): 
+            y = y_in.values
+        else:
+            y = y_in
+
+        
+        results = []
+        if isinstance(feature_groups_of_interest, str):
+            if feature_groups_of_interest == 'all individual features':
+                groups_of_indicies_to_permute = [[x] for x in range(len(feature_names))]
+            else:
+                raise Exception('feature_groups_of_interest incorrectly specified. If not specifying to use all individual features via "all individual features" you must pass a numpy array of numpy arrays. See the documentation on github.')
+        elif len(feature_groups_of_interest) != len(feature_names):
+            raise Exception(f'The wrong number of feature names were provided. len(feature_groups_of_interest): {len(feature_groups_of_interest)} != len(feature_names) {len(feature_names)}')
+        
+        elif isinstance(feature_groups_of_interest[0], str) or isinstance(feature_groups_of_interest[0][0], str):
+            # we need to convert the feature groups to index groups
+            if not isinstance(X_in, pd.DataFrame):
+                raise Exception('You can only pass variable names for grouping if you pass the data as a dataframe. X was not a dataframe.')
+            X_cols = X_in.columns.tolist()
+            fgi = []
+
+            if isinstance(feature_groups_of_interest[0], str):
+                for iat in feature_groups_of_interest:
+                    fgi.append(X_cols.index(iat))
+            else:
+                for iat in feature_groups_of_interest:
+                    tmp = []
+                    for jat in iat:
+                        tmp.append(X_cols.index(jat))
+                    fgi.append(tmp)
+            
+            groups_of_indicies_to_permute = fgi
+        else:
+            groups_of_indicies_to_permute = feature_groups_of_interest
+
+
         """ Return the accuracy of the prediction of X compared to y. """
         np.random.seed(random_state)
         if is_classification:
@@ -1003,8 +1050,8 @@ class BaseForest(MultiOutputMixin, BaseEnsemble, metaclass=ABCMeta):
 
         
         rtn_list = []
-        for indices_to_permute in feature_groups_of_interest:
-            acc_set = []
+        for indices_to_permute in groups_of_indicies_to_permute:
+            r_set = []
         # print('====d=========================')
             for i in range(num_times):
                 #print('==========ud==================: {}'.format(indices_to_permute))
@@ -1017,19 +1064,19 @@ class BaseForest(MultiOutputMixin, BaseEnsemble, metaclass=ABCMeta):
 
                 if is_classification:
                     # MDA
-                    acc_set.append(base_score- self.score(X,y))
+                    r_set.append(base_score- self.score(X,y))
                     
                 else:
                     # Here we return Mean increase in Error (MIE)
                     if self.get_params()['criterion'] == 'mse':
-                        acc_set.append(mean_squared_error(y, self.predict(X)) - base_score)
+                        r_set.append(mean_squared_error(y, self.predict(X)) - base_score)
                     elif self.get_params()['criterion'] == 'mae':
-                        acc_set.append(mean_absolute_error(y, self.predict(X)) - base_score)
+                        r_set.append(mean_absolute_error(y, self.predict(X)) - base_score)
                     else:
                         raise Exception('Unsupported criterion: {}'.format(self.get_params()['criterion']))
                     
             
-            mean_performace = np.mean(acc_set) #calculate the average accuracy
+            mean_performace = np.mean(r_set) #calculate the average accuracy
             rtn_list.append(mean_performance)
         return rtn_list
 
