@@ -1076,7 +1076,7 @@ class BaseForest(MultiOutputMixin, BaseEnsemble, metaclass=ABCMeta):
                         raise Exception('Unsupported criterion: {}'.format(self.get_params()['criterion']))
                     
             
-            mean_performace = np.mean(r_set) #calculate the average accuracy
+            mean_performance = np.mean(r_set) #calculate the average accuracy
             rtn_list.append(mean_performance)
         return rtn_list
 
