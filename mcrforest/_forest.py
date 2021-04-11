@@ -411,7 +411,7 @@ class BaseForest(MultiOutputMixin, BaseEnsemble, metaclass=ABCMeta):
         return rtn
 
 
-    def mcr_shap_plot(self, model, X, mcr_plus = True, plot_size = None):
+    def mcr_shap_plot(self, model, X, mcr_plus = True, plot_size = None, sort = True):
         print('WARNING: This function is still in development. You must have a patched version of SHAP for this to work.')
         
         import shap
@@ -441,7 +441,7 @@ class BaseForest(MultiOutputMixin, BaseEnsemble, metaclass=ABCMeta):
         else:
             cmp = cmp_min
 
-        shap.summary_plot(np.asarray(rtn_mcr_plus).T, X, show = False, sort = True, plot_size = plot_size, cmap=cmp, max_display = X.shape[1])
+        shap.summary_plot(np.asarray(rtn_mcr_plus).T, X, show = False, sort = sort, plot_size = plot_size, cmap=cmp, max_display = X.shape[1])
 
 
     def mcr(self, X_in, y_in, indices_to_permute, 
