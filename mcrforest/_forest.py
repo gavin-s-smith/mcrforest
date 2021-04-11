@@ -411,7 +411,7 @@ class BaseForest(MultiOutputMixin, BaseEnsemble, metaclass=ABCMeta):
         return rtn
 
 
-    def mcr_shap_plot(self, model, X, mcr_plus = True, plot_size = None, sort = True):
+    def mcr_shap_plot(self, X, mcr_plus = True, plot_size = None, sort = True):
         print('WARNING: This function is still in development. You must have a patched version of SHAP for this to work.')
         
         import shap
@@ -430,7 +430,7 @@ class BaseForest(MultiOutputMixin, BaseEnsemble, metaclass=ABCMeta):
         rtn_mcr_plus = []
 
         for i, var in enumerate(X.columns.tolist()):
-            mm = model.get_specific_forest_from_mcr_set(var_idx = X.columns.tolist().index(var), force_use = mcr_plus)
+            mm = self.get_specific_forest_from_mcr_set(var_idx = X.columns.tolist().index(var), force_use = mcr_plus)
             mm.__class__ = sklrf
             explainerm = shap.TreeExplainer(mm, X, check_additivity=False)
             shap_values_randomm = explainerm.shap_values(X, check_additivity=False)
