@@ -411,7 +411,38 @@ class BaseForest(MultiOutputMixin, BaseEnsemble, metaclass=ABCMeta):
         return rtn
 
 
-    
+    def mcr_shap_plot(self, model, X, mcr_plus = True, plot_size = None):
+        print('WARNING: This function is still in development. You must have a patched version of SHAP for this to work.')
+        
+        import shap
+        from sklearn.ensemble import RandomForestClassifier as sklrf
+        import seaborn as sns
+
+        cmp_min = sns.dark_palette("#FF8A57FF", reverse=False, as_cmap=True)
+        cmp_max = sns.dark_palette("#97BC62FF", reverse=False, as_cmap=True)
+
+        ### decided to do it as a dictionary
+        ### as opposed to a list as easier to manipulate later
+        shap_values_by_voi = {}
+
+        shap_vals = None
+
+        rtn_mcr_plus = []
+
+        for i, var in enumerate(X.columns.tolist()):
+            mm = model.get_specific_forest_from_mcr_set(var_idx = X.columns.tolist().index(var), force_use = mcr_plus)
+            mm.__class__ = sklrf
+            explainerm = shap.TreeExplainer(mm, X, check_additivity=False)
+            shap_values_randomm = explainerm.shap_values(X, check_additivity=False)
+            rtn_mcr_plus.append( shap_values_randomm[1][:,i] ) 
+        
+        if mcr_plus:
+            cmp = cmp_max
+        else:
+            cmp = cmp_min
+
+        shap.summary_plot(np.asarray(rtn_mcr_plus).T, X, show = False, sort = True, plot_size = plot_size, cmap=cmp, max_display = X.shape[1])
+
 
     def mcr(self, X_in, y_in, indices_to_permute, 
                                     num_times = 100, debug = False, debug_call = False, debug_trees = None,
