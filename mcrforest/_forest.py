@@ -675,8 +675,8 @@ class BaseForest(MultiOutputMixin, BaseEnsemble, metaclass=ABCMeta):
                 y_pred = self.predict(X)
                 return custom_scorer(y,y_pred)
 
-            forest_scorer = cust_fn_vim(X)
-            forest_scorer_reference_model = cust_fn(X)
+            forest_scorer = cust_fn_vim
+            forest_scorer_reference_model = cust_fn
 
         ref_forest_orig_data_score = forest_scorer(X)
 
