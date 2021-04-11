@@ -990,7 +990,7 @@ class BaseForest(MultiOutputMixin, BaseEnsemble, metaclass=ABCMeta):
 
         
         if include_permutation_importance:
-            perm_scores = model_mcr.unconditional_permutation_importance(X_in, y_in, feature_groups_of_interest = mcr_groupings, feature_names = grouping_names, num_times = 50)
+            perm_scores = self.unconditional_permutation_importance(X_in, y_in, feature_groups_of_interest = feature_groups_of_interest, feature_names = feature_names, num_times = num_times)
             rf_results2['perm_scores'] = perm_scores
         
         plot_mcr_graph(rf_results2)
