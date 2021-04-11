@@ -73,7 +73,6 @@ from contextlib import redirect_stdout
 from matplotlib.backends.backend_pdf import PdfPages
 
 
-
 __all__ = ["RandomForestClassifier",
            "RandomForestRegressor",
            "ExtraTreesClassifier",
@@ -417,7 +416,7 @@ class BaseForest(MultiOutputMixin, BaseEnsemble, metaclass=ABCMeta):
     def mcr(self, X_in, y_in, indices_to_permute, 
                                     num_times = 100, debug = False, debug_call = False, debug_trees = None,
                                     mcr_type = 1, restrict_trees_to = None, mcr_as_ratio = False, seed = 13111985, 
-                                    enable_Tplus_transform = True
+                                    enable_Tplus_transform = True, custom_scorer = None
                                     ):
         """ Computes MCR+ or MCR-
 
@@ -455,6 +454,7 @@ class BaseForest(MultiOutputMixin, BaseEnsemble, metaclass=ABCMeta):
                             If True the tree transform will be used. 
                             NOTE: If this parameter is set to False then this function no longer computes the MCR. 
                                   See G. SMITH, R. MANSILLA and J. GOULDING, 2020. Model Class Reliance for Random Forests. In 34th Conference on Neural Information Processing Systems (NeurIPS 2020), Vancouver, Canada
+        custom_scorer: None or a custom function with signiture: score_func(y, y_pred) where y and y_pred are arrays and the function returns a single score.
         """
 
 
@@ -648,22 +648,35 @@ class BaseForest(MultiOutputMixin, BaseEnsemble, metaclass=ABCMeta):
         #print(new_trees_indexes)
         #print(new_tree_equivilents)
         
+        if custom_scorer is None:
                 
-        if is_classification:
-            forest_scorer = lambda x: np.mean(self.predict_vim(x,indices_to_permute,mcr_ordering_pre, mcr_ordering_others, mcr_ordering_post)==y)
-        else:
-            if self.get_params()['criterion'] == 'mse':
-                forest_scorer = lambda x: np.mean( (self.predict_vim(x,indices_to_permute,mcr_ordering_pre, mcr_ordering_others, mcr_ordering_post)-y)**2 )
+            if is_classification:
+                forest_scorer = lambda x: np.mean(self.predict_vim(x,indices_to_permute,mcr_ordering_pre, mcr_ordering_others, mcr_ordering_post)==y)
             else:
-                forest_scorer = lambda x: np.mean( np.abs(self.predict_vim(x,indices_to_permute,mcr_ordering_pre, mcr_ordering_others, mcr_ordering_post)-y) )
+                if self.get_params()['criterion'] == 'mse':
+                    forest_scorer = lambda x: np.mean( (self.predict_vim(x,indices_to_permute,mcr_ordering_pre, mcr_ordering_others, mcr_ordering_post)-y)**2 )
+                else:
+                    forest_scorer = lambda x: np.mean( np.abs(self.predict_vim(x,indices_to_permute,mcr_ordering_pre, mcr_ordering_others, mcr_ordering_post)-y) )
 
-        if is_classification:
-            forest_scorer_reference_model = lambda x: np.mean(self.predict(x)==y)
-        else:
-            if self.get_params()['criterion'] == 'mse':
-                forest_scorer_reference_model = lambda x: np.mean( (self.predict(x)-y)**2 )
+            if is_classification:
+                forest_scorer_reference_model = lambda x: np.mean(self.predict(x)==y)
             else:
-                forest_scorer_reference_model = lambda x: np.mean( np.abs(self.predict(x)-y) )
+                if self.get_params()['criterion'] == 'mse':
+                    forest_scorer_reference_model = lambda x: np.mean( (self.predict(x)-y)**2 )
+                else:
+                    forest_scorer_reference_model = lambda x: np.mean( np.abs(self.predict(x)-y) )
+        else:
+
+            def cust_fn_vim( X ):
+                y_pred = self.predict_vim(X,indices_to_permute,mcr_ordering_pre, mcr_ordering_others, mcr_ordering_post)
+                return custom_scorer(y,y_pred)
+            
+            def cust_fn( X ):
+                y_pred = self.predict(X)
+                return custom_scorer(y,y_pred)
+
+            forest_scorer = cust_fn_vim(X)
+            forest_scorer_reference_model = cust_fn(X)
 
         ref_forest_orig_data_score = forest_scorer(X)
 
@@ -710,7 +723,7 @@ class BaseForest(MultiOutputMixin, BaseEnsemble, metaclass=ABCMeta):
         #    print('WARNING: Left the Rashomon set. Original acc/squared error: {}, After: {}, Difference: {}'.format(ref_forest_orig_data_score,new_forest_orig_data_score,rashomon_set_error))
 
         
-        new_forest_orig_data_score = forest_scorer(X)
+        #new_forest_orig_data_score = forest_scorer(X)
         new_forest_perm_data_score = forest_scorer(X_perm)
 
         
@@ -853,7 +866,7 @@ class BaseForest(MultiOutputMixin, BaseEnsemble, metaclass=ABCMeta):
         
         return np.asarray(pre, dtype = np.int64), np.asarray(others, dtype = np.int64), np.asarray(post, dtype = np.int64)
 
-    def plot_mcr(self,X_in, y_in, feature_names = None, feature_groups_of_interest = 'all individual features', num_times = 100, show_fig = True, pdf_file = None, use_cache = False):
+    def plot_mcr(self,X_in, y_in, feature_names = None, feature_groups_of_interest = 'all individual features', num_times = 100, show_fig = True, pdf_file = None, use_cache = False, include_permutation_importance = None, custom_scorer = None):
             
         """
         Compute the required information for an MCR plot and optionally display the MCR plot.
@@ -879,6 +892,10 @@ class BaseForest(MultiOutputMixin, BaseEnsemble, metaclass=ABCMeta):
                 If not None, a path to save a pdf of the graph to.
         use_cache: bool
                 If True save the resulting MCR frame to the variable self.mcr_cache using the USE/AVOID human readable history string.
+        include_permutation_importance: bool
+                If True compute and plot the unconditional permutation importance scores. 
+        custom_scorer: None of callable
+                If not None, a Loss function (or loss function) with signature score_func(y, y_pred). Assumes smaller is better.
         Returns
         -------
         rf_results2 : {pandas DataFrame} of shape (2*[number_of_features OR len(feature_groups_of_interest)], 3)
@@ -937,7 +954,7 @@ class BaseForest(MultiOutputMixin, BaseEnsemble, metaclass=ABCMeta):
         print('Processing MCR+ groups of features.')
         gp_idx = 0
         for gp in tqdm(groups_of_indicies_to_permute):
-            rn = self.mcr(X,y, np.asarray(gp) ,  num_times = num_times, mcr_type = 1)
+            rn = self.mcr(X,y, np.asarray(gp) ,  num_times = num_times, mcr_type = 1, custom_scorer = custom_scorer)
             results.append([feature_names[gp_idx], 'RF-MCR+', rn])
             gp_idx += 1
 
@@ -945,7 +962,7 @@ class BaseForest(MultiOutputMixin, BaseEnsemble, metaclass=ABCMeta):
         print('Processing MCR- groups of features.')
         gp_idx = 0
         for gp in tqdm(groups_of_indicies_to_permute):
-            rn = self.mcr(X,y, np.asarray(gp) ,  num_times = num_times,  mcr_type = -1)
+            rn = self.mcr(X,y, np.asarray(gp) ,  num_times = num_times,  mcr_type = -1, custom_scorer = custom_scorer)
             results.append([feature_names[gp_idx], 'RF-MCR-', rn])
             gp_idx += 1
 
@@ -967,7 +984,15 @@ class BaseForest(MultiOutputMixin, BaseEnsemble, metaclass=ABCMeta):
             plt.gcf().set_size_inches(fig_size)
             plt.hlines(y=range(df_in.shape[0]), xmin=0, xmax=df_in['MCR-'], color='skyblue')
             plt.plot(df_in['MCR-'], range(df_in.shape[0]), "o", color = 'skyblue')
+            if 'perm_scores' in df_in.columns.tolist():
+                plt.plot(df_in['perm_scores'], range(df_in.shape[0]), "x", color = 'black')
 
+
+        
+        if include_permutation_importance:
+            perm_scores = model_mcr.unconditional_permutation_importance(X_in, y_in, feature_groups_of_interest = mcr_groupings, feature_names = grouping_names, num_times = 50)
+            rf_results2['perm_scores'] = perm_scores
+        
         plot_mcr_graph(rf_results2)
         if show_fig:
             plt.show()
