@@ -763,10 +763,16 @@ cdef class Tree:
 
         with nogil:
             for i in range(n_samples):
+                
                 node = self.nodes
                 # While node not a leaf
+                # gavin 123
                 while node.left_child != _TREE_LEAF:
                     # ... and node.right_child != _TREE_LEAF:
+                    # with gil: 
+                    #     if X_ndarray[i,0] == 540:
+                    #         print(f'X_ndarray[i, node.feature] <= node.threshold: {X_ndarray[i, node.feature]} <= {node.threshold}')
+
                     if X_ndarray[i, node.feature] <= node.threshold:
                         node = &self.nodes[node.left_child]
                     else:
@@ -980,7 +986,7 @@ cdef class Tree:
         cdef SIZE_t n_mcr_order_post = len(mcr_ordering_post)
 
         cdef SIZE_t feature_to_use = 0
-        cdef DTYPE_t threshold_to_use = 0
+        cdef DOUBLE_t threshold_to_use = 0
         # Initialize output
         cdef np.ndarray[SIZE_t] out = np.zeros((n_samples,), dtype=np.intp)
         cdef SIZE_t* out_ptr = <SIZE_t*> out.data
@@ -1001,18 +1007,24 @@ cdef class Tree:
 
         with nogil:
             for i in range(n_samples):
-                #with gil:
-                #    print('\n========== CONSIDERING SAMPLE {} ================'.format(i))
+                # with gil:
+                #     if i == 318:
+                #         print('\n========== CONSIDERING SAMPLE {} ================'.format(i))
                 node = self.nodes
                 # While node not a leaf
                 while node.left_child != _TREE_LEAF:
                     # ... and node.right_child != _TREE_LEAF:
-                    #with gil:
-                    #    print(f'Node has {node.num_surrogates} surrogates')
+                    # with gil:
+                    #     if i == 318:
+                    #         print(f'Node has {node.num_surrogates} surrogates')
                   
                     do_not_flip = 1 
                     feature_to_use = node.feature
                     threshold_to_use = node.threshold
+
+                    # with gil:
+                    #     if i == 318:
+                    #         print(f'*****: threshold_to_use {threshold_to_use}, node.threshold: {node.threshold}')
 
                     found = 0
 
@@ -1045,10 +1057,14 @@ cdef class Tree:
                                     #     do_not_flip = 1 
 
                                     break
-
+                        
                         if found != 0:
                             break
-                        
+                    
+                    # with gil:
+                    #     if i == 318:
+                    #         print(f'PRE: found {found}')
+
                     # OTHERS: 1st check all OTHERS to see if contains the actual split
                     for io in range(n_mcr_order_others):
                         if found != 0:
@@ -1082,7 +1098,9 @@ cdef class Tree:
                         if found != 0:
                             break
                 
-                    
+                    # with gil:
+                    #     if i == 318:
+                    #         print(f'OTHERS: found {found}')
 
                     # POST search L-R through surrogates OR split
                     # for each variable in the order of use (L2R for MCR+ and MCR-, this ordering will be different in each case)
@@ -1120,18 +1138,22 @@ cdef class Tree:
                         if found != 0:
                             break
 
+                    # with gil:
+                    #     if i == 318:
+                    #         print(f'POST: found {found}')
+
                     if do_not_flip == 1:
-                        #with gil:
-                            #if i == 0:
-                            #print('Considering feature: {}] {} <= {}. If True: going LEFT.'.format(feature_to_use, X_ndarray[i, feature_to_use], threshold_to_use))
+                        # with gil:
+                        #     if i == 318:
+                        #         print('Considering feature: {}] {} <= {}. If True: going LEFT. {}'.format(feature_to_use, X_ndarray[i, feature_to_use], threshold_to_use, node.threshold))
                         if X_ndarray[i, feature_to_use] <= threshold_to_use:
                             node = &self.nodes[node.left_child]
                         else:
                             node = &self.nodes[node.right_child]
                     else:
-                        #with gil:
-                            #if i == 0:
-                            #print('Considering feature: {}] {} <= {}. If True: going RIGHT.'.format(feature_to_use, X_ndarray[i, feature_to_use], threshold_to_use))
+                        # with gil:
+                        #     if i == 318:   #gavin123
+                        #         print('Considering feature: {}] {} <= {}. If True: going RIGHT. {}'.format(feature_to_use, X_ndarray[i, feature_to_use], threshold_to_use, node.threshold))
                         if X_ndarray[i, feature_to_use] <= threshold_to_use:
                             node = &self.nodes[node.right_child]
                         else:

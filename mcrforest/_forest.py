@@ -423,9 +423,7 @@ class BaseForest(MultiOutputMixin, BaseEnsemble, metaclass=ABCMeta):
 
         ### decided to do it as a dictionary
         ### as opposed to a list as easier to manipulate later
-        shap_values_by_voi = {}
 
-        shap_vals = None
 
         rtn_mcr_plus = []
 
@@ -1341,13 +1339,18 @@ class BaseForest(MultiOutputMixin, BaseEnsemble, metaclass=ABCMeta):
         # GAVIN VERIFY BUILD OF TREES
         from sklearn.metrics import accuracy_score
         for tidx, t in enumerate(self.estimators_):
+            
+
             if is_classifier(self):
                 a = accuracy_score(y, t.predict(X))
             else:
                 a = mean_squared_error(y, t.predict(X))
             
-            for i in range( X.shape[1] ):
+            for i in range( X.shape[1] ): # check each variable
                 
+                # if tidx == 482 and i == 0:
+                #     print(t.print_tree(col_names = ['b','t','e','h']))
+
                 mcr_ordering_pre = np.asarray([i], dtype = np.int64)
                 mcr_ordering_others = np.asarray([ x for x in range(X.shape[1]) if x != i], dtype = np.int64)
                 mcr_ordering_post = np.asarray([], dtype = np.int64)
@@ -1364,6 +1367,7 @@ class BaseForest(MultiOutputMixin, BaseEnsemble, metaclass=ABCMeta):
                     print('Bootstrap: {}'.format(self.bootstrap))
                     print('a: {}'.format(a))
                     print('b: {}'.format(b))
+                    print(f'Tree idx: {tidx}, variable idx: {i}')
                     raise Exception('MAJOR SURROGATE ERROR WITH MCR+. Or you forgot to set bootstrap = False.')
                 #if a != c:
                 #    raise Exception('MAJOR SURROGATE ERROR WITH MCR-. Or you forgot to set bootstrap = False.')
