@@ -441,6 +441,9 @@ class BaseForest(MultiOutputMixin, BaseEnsemble, metaclass=ABCMeta):
 
         shap.summary_plot(np.asarray(rtn_mcr_plus).T, X, show = False, sort = sort, plot_size = plot_size, cmap=cmp, max_display = X.shape[1])
 
+        # returns the SHAP values (# samples x # features).
+        return np.asarray(rtn_mcr_plus).T
+
 
     def mcr(self, X_in, y_in, indices_to_permute, 
                                     num_times = 100, debug = False, debug_call = False, debug_trees = None,
