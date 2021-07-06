@@ -414,6 +414,12 @@ class BaseForest(MultiOutputMixin, BaseEnsemble, metaclass=ABCMeta):
     def mcr_shap_plot(self, X, mcr_plus = True, plot_size = None, sort = True):
         print('WARNING: This function is still in development. You must have a patched version of SHAP for this to work.')
         
+        # Check if 
+        # (1) the model has been fit
+        # (2) MCR has been called with no groupings
+        print('WARNING: Ensure that the model has been fit')
+        print('WARNING: Ensure plot_mcr(...) has been called with no groupings. This is currently not checked.')
+
         import shap
         from sklearn.ensemble import RandomForestClassifier as sklrf
         import seaborn as sns
