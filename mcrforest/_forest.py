@@ -419,7 +419,7 @@ class BaseForest(MultiOutputMixin, BaseEnsemble, metaclass=ABCMeta):
         # (2) MCR has been called with no groupings
         print('WARNING: Ensure that the model has been fit')
         print('WARNING: Ensure plot_mcr(...) has been called with no groupings. This is currently not checked.')
-        print('UPDATED')
+        print('UPDATED2')
 
         import shap
         from sklearn.ensemble import RandomForestClassifier as sklrf
@@ -445,15 +445,15 @@ class BaseForest(MultiOutputMixin, BaseEnsemble, metaclass=ABCMeta):
             old_tree_class = mm.estimators_[0]
             
             mm.__class__ = sklrf
-            for e in mm.estimators_:
-                e.__class__ = skltree
+            for i,e in enumerate(mm.estimators_):
+                mm.estimators_[i].__class__ = skltree
             explainerm = shap.TreeExplainer(mm, X, check_additivity=False)
             shap_values_randomm = explainerm.shap_values(X, check_additivity=False)
             rtn_mcr_plus.append( shap_values_randomm[1][:,i] ) 
 
             mm.__class__ = old_class
-            for e in mm.estimators_:
-                e.__class__ = old_tree_class
+            for i,e in enumerate(mm.estimators_):
+                mm.estimators_[i].__class__= old_tree_class
 
         
         if mcr_plus:
