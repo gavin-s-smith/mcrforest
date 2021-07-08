@@ -468,9 +468,6 @@ class BaseForest(MultiOutputMixin, BaseEnsemble, metaclass=ABCMeta):
                 return sklearn.tree._tree.Tree       
 
             
-            
-
-
         rtn_mcr_plus = []
 
         for i, var in enumerate(X.columns.tolist()):
@@ -479,15 +476,15 @@ class BaseForest(MultiOutputMixin, BaseEnsemble, metaclass=ABCMeta):
             old_class = mm.__class__
             
             mm.__class__ = sklrf
-            for i,e in enumerate(mm.estimators_):
-                mm.estimators_[i].tree_ = Wrapper(mm.estimators_[i].tree_) 
+            for idx,e in enumerate(mm.estimators_):
+                mm.estimators_[i].tree_ = Wrapper(mm.estimators_[idx].tree_) 
             explainerm = shap.TreeExplainer(mm, X, check_additivity=False)
             shap_values_randomm = explainerm.shap_values(X, check_additivity=False)
             rtn_mcr_plus.append( shap_values_randomm[1][:,i] ) 
 
             mm.__class__ = old_class
-            for i,e in enumerate(mm.estimators_):
-                mm.estimators_[i].tree_ = mm.estimators_[i].tree_._wrapped_obj
+            for idx,e in enumerate(mm.estimators_):
+                mm.estimators_[i].tree_ = mm.estimators_[idx].tree_._wrapped_obj
 
         
         if mcr_plus:
