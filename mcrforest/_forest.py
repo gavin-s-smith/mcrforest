@@ -444,11 +444,11 @@ class BaseForest(MultiOutputMixin, BaseEnsemble, metaclass=ABCMeta):
             mm = self.get_specific_forest_from_mcr_set(var_idx = X.columns.tolist().index(var), force_use = mcr_plus)
             
             old_class = mm.__class__
-            old_tree_class = mm.estimators_[0]
+            old_tree_class = mm.estimators_[0].__class__
             
             mm.__class__ = sklrf
             for i,e in enumerate(mm.estimators_):
-                mm.estimators_[i].__class__ = skltree
+                mm.estimators_[i].__class__ = = lambda: return sklearn.tree._tree.Tree  
             explainerm = shap.TreeExplainer(mm, X, check_additivity=False)
             shap_values_randomm = explainerm.shap_values(X, check_additivity=False)
             rtn_mcr_plus.append( shap_values_randomm[1][:,i] ) 
