@@ -142,6 +142,9 @@ class BaseDecisionTree(MultiOutputMixin, BaseEstimator, metaclass=ABCMeta):
         check_is_fitted(self)
         return self.tree_.n_leaves
 
+    def mcr_freeze(self, var_idx, force_use):
+        self.tree_.mcr_freeze( var_idx,  force_use )
+
     def fit(self, X, y, sample_weight=None, check_input=True,
             X_idx_sorted=None):
 
@@ -1061,9 +1064,9 @@ class DecisionTreeClassifier(ClassifierMixin, BaseDecisionTree):
 
             return all_proba
 
-    def mcr_freeze(self, var_idx, force_use):
+    # def mcr_freeze(self, var_idx, force_use):
     
-        self.tree_.mcr_freeze( var_idx,  force_use )
+    #     self.tree_.mcr_freeze( var_idx,  force_use )
 
 
     def predict_proba(self, X, check_input=True):
