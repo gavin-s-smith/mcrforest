@@ -480,14 +480,14 @@ class BaseForest(MultiOutputMixin, BaseEnsemble, metaclass=ABCMeta):
             
             mm.__class__ = sklrf
             for i,e in enumerate(mm.estimators_):
-                mm.estimators_[i] = Wrapper(mm.estimators_[i]) 
+                mm.estimators_[i]._tree = Wrapper(mm.estimators_[i]._tree) 
             explainerm = shap.TreeExplainer(mm, X, check_additivity=False)
             shap_values_randomm = explainerm.shap_values(X, check_additivity=False)
             rtn_mcr_plus.append( shap_values_randomm[1][:,i] ) 
 
             mm.__class__ = old_class
             for i,e in enumerate(mm.estimators_):
-                mm.estimators_[i] = mm.estimators_[i]._wrapped_obj
+                mm.estimators_[i]._tree = mm.estimators_[i]._tree._wrapped_obj
 
         
         if mcr_plus:
