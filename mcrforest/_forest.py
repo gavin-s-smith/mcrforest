@@ -414,14 +414,14 @@ class BaseForest(MultiOutputMixin, BaseEnsemble, metaclass=ABCMeta):
     
 
     def mcr_shap_plot(self, X, mcr_plus = True, plot_size = None, sort = True):
-        print('WARNING: This function is still in development. You must have a patched version of SHAP for this to work.')
+        print('WARNING: This function is still in development.')
         
         # Check if 
         # (1) the model has been fit
         # (2) MCR has been called with no groupings
         print('WARNING: Ensure that the model has been fit')
         print('WARNING: Ensure plot_mcr(...) has been called with no groupings. This is currently not checked.')
-        print('UPDATED2')
+        
 
         import shap
         from sklearn.ensemble import RandomForestClassifier as sklrf
@@ -437,6 +437,9 @@ class BaseForest(MultiOutputMixin, BaseEnsemble, metaclass=ABCMeta):
         ### decided to do it as a dictionary
         ### as opposed to a list as easier to manipulate later
 
+        # As we cannot change the class of a C object we will wrap
+        # them with a wrapper which already is defined to return the
+        # class of interest. Then we will unwrap them.
         class Wrapper(object):
             '''
             Object wrapper class.
