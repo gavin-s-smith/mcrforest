@@ -423,26 +423,10 @@ class BaseForest(MultiOutputMixin, BaseEnsemble, metaclass=ABCMeta):
         import shap
         from sklearn.ensemble import RandomForestClassifier as sklrf
         import seaborn as sns
-
-        # Now patch the safe_isinstance
-        def safe_isinstance_new(obj, class_path_str):
-            print('a')
-
-            if "sklearn.tree._tree.Tree" in class_path_str:
-                module_name, class_name = 'mcrforest._classes.DecisionTreeRegressor'.rsplit(".", 1)
-                module = sys.modules[module_name]
-                _class_regressor = getattr(module, class_name, None)
-                module_name, class_name = 'mcrforest._classes.DecisionTreeClassifier'.rsplit(".", 1)
-                module = sys.modules[module_name]
-                _class_classifier = getattr(module, class_name, None)
-                if isinstance(obj,_class_regressor) or isinstance(obj,_class_classifier):
-                    return True
-            print('aksdhflasdf77777777777777777777777============')
-            return shap.utils._general.safe_isinstance(obj, class_path_str)
-        
-        shap.utils._general.safe_isinstance = safe_isinstance_new
-        shap.utils.safe_isinstance = safe_isinstance_new
-        shap.TreeExplainer.safe_isinstance = safe_isinstance_new
+        if is_classifier(self):
+            from sklearn.tree import DecisionTreeClassifier as skltree
+        else:
+            from sklearn.tree import DecisionTreeRegressor as skltree
 
         cmp_min = sns.dark_palette("#FF8A57FF", reverse=False, as_cmap=True)
         cmp_max = sns.dark_palette("#97BC62FF", reverse=False, as_cmap=True)
@@ -456,6 +440,8 @@ class BaseForest(MultiOutputMixin, BaseEnsemble, metaclass=ABCMeta):
         for i, var in enumerate(X.columns.tolist()):
             mm = self.get_specific_forest_from_mcr_set(var_idx = X.columns.tolist().index(var), force_use = mcr_plus)
             mm.__class__ = sklrf
+            for e in mm.estimators_:
+                e.__class__ = skltree
             explainerm = shap.TreeExplainer(mm, X, check_additivity=False)
             shap_values_randomm = explainerm.shap_values(X, check_additivity=False)
             rtn_mcr_plus.append( shap_values_randomm[1][:,i] ) 
