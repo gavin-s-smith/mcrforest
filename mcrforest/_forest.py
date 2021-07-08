@@ -413,9 +413,15 @@ class BaseForest(MultiOutputMixin, BaseEnsemble, metaclass=ABCMeta):
 
     
 
-    def mcr_shap_plot(self, X, mcr_plus = True, plot_size = None, sort = True):
+    def mcr_shap_plot(self, X_in, mcr_plus = True, plot_size = None, sort = True, variable_subset = None):
         print('WARNING: This function is still in development.')
         
+
+        if variable_subset is None:
+            X = X_in[X_in.columns.tolist()]
+        else:
+            X = X_in[variable_subset]
+
         # Check if 
         # (1) the model has been fit
         # (2) MCR has been called with no groupings
@@ -472,6 +478,8 @@ class BaseForest(MultiOutputMixin, BaseEnsemble, metaclass=ABCMeta):
 
             
         rtn_mcr_plus = []
+
+        
 
         for i, var in enumerate(X.columns.tolist()):
             mm = self.get_specific_forest_from_mcr_set(var_idx = X.columns.tolist().index(var), force_use = mcr_plus)
