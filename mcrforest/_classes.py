@@ -954,7 +954,11 @@ class DecisionTreeClassifier(ClassifierMixin, BaseDecisionTree):
         if spoof_as_sklearn:
             from sklearn.tree import DecisionTreeClassifier as skDTC
             self.__class__ = skDTC
-            
+
+    @property
+    def __class__(self):
+        import sklearn
+        return sklearn.tree._tree.Tree       
 
     def gavin(self):
         print('GAVIN')
@@ -1373,6 +1377,11 @@ class DecisionTreeRegressor(RegressorMixin, BaseDecisionTree):
         if spoof_as_sklearn:
             from sklearn.tree import DecisionTreeRegressor as sklearnDTR
             self.__class__ = sklearnDTR
+
+    @property
+    def __class__(self):
+        import sklearn
+        return sklearn.tree._tree.Tree    
 
     def fit(self, X, y, sample_weight=None, check_input=True,
             X_idx_sorted=None):

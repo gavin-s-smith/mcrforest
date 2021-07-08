@@ -411,9 +411,7 @@ class BaseForest(MultiOutputMixin, BaseEnsemble, metaclass=ABCMeta):
         return rtn
 
 
-    @property
-    def __class__(self):
-        return sklearn.tree._tree.Tree
+    
 
     def mcr_shap_plot(self, X, mcr_plus = True, plot_size = None, sort = True):
         print('WARNING: This function is still in development. You must have a patched version of SHAP for this to work.')
