@@ -442,6 +442,7 @@ class BaseForest(MultiOutputMixin, BaseEnsemble, metaclass=ABCMeta):
         
         shap.utils._general.safe_isinstance = safe_isinstance_new
         shap.utils.safe_isinstance = safe_isinstance_new
+        shap.TreeExplainer.safe_isinstance = safe_isinstance_new
 
         cmp_min = sns.dark_palette("#FF8A57FF", reverse=False, as_cmap=True)
         cmp_max = sns.dark_palette("#97BC62FF", reverse=False, as_cmap=True)
