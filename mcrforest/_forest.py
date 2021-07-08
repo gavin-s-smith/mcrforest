@@ -422,6 +422,7 @@ class BaseForest(MultiOutputMixin, BaseEnsemble, metaclass=ABCMeta):
         else:
             X = X_in[variable_subset]
 
+        print(X)
         # Check if 
         # (1) the model has been fit
         # (2) MCR has been called with no groupings
