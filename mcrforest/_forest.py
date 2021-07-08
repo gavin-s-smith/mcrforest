@@ -413,7 +413,7 @@ class BaseForest(MultiOutputMixin, BaseEnsemble, metaclass=ABCMeta):
 
     
 
-    def mcr_shap_plot(self, X_in, mcr_plus = True, plot_size = None, sort = True):
+    def mcr_shap_plot(self, X, mcr_plus = True, plot_size = None, sort = True):
         print('WARNING: This function is still in development.')
         
 
