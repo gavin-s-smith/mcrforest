@@ -419,6 +419,7 @@ class BaseForest(MultiOutputMixin, BaseEnsemble, metaclass=ABCMeta):
         # (2) MCR has been called with no groupings
         print('WARNING: Ensure that the model has been fit')
         print('WARNING: Ensure plot_mcr(...) has been called with no groupings. This is currently not checked.')
+        print('UPDATED')
 
         import shap
         from sklearn.ensemble import RandomForestClassifier as sklrf
