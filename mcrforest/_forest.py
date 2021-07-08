@@ -449,10 +449,8 @@ class BaseForest(MultiOutputMixin, BaseEnsemble, metaclass=ABCMeta):
                 Wrapper constructor.
                 @param obj: object to wrap
                 '''
-                import sklearn
                 # wrap the object
                 self._wrapped_obj = obj
-                self.__class__ = sklearn.tree._tree.Tree
 
             def __getattr__(self, attr):
                 # see if this object has attr
@@ -463,6 +461,12 @@ class BaseForest(MultiOutputMixin, BaseEnsemble, metaclass=ABCMeta):
                     return getattr(self, attr)
                 # proxy to the wrapped object
                 return getattr(self._wrapped_obj, attr)
+            
+            @property
+            def __class__(self):
+                import sklearn
+                return sklearn.tree._tree.Tree       
+
             
             
 
