@@ -437,6 +437,35 @@ class BaseForest(MultiOutputMixin, BaseEnsemble, metaclass=ABCMeta):
         ### decided to do it as a dictionary
         ### as opposed to a list as easier to manipulate later
 
+        class Wrapper(object):
+            '''
+            Object wrapper class.
+            This a wrapper for objects. It is initialiesed with the object to wrap
+            and then proxies the unhandled getattribute methods to it.
+            Other classes are to inherit from it.
+            '''
+            def __init__(self, obj):
+                '''
+                Wrapper constructor.
+                @param obj: object to wrap
+                '''
+                import sklearn
+                # wrap the object
+                self._wrapped_obj = obj
+                self.__class__ = sklearn.tree._tree.Tree
+
+            def __getattr__(self, attr):
+                # see if this object has attr
+                # NOTE do not use hasattr, it goes into
+                # infinite recurrsion
+                if attr in self.__dict__:
+                    # this object has it
+                    return getattr(self, attr)
+                # proxy to the wrapped object
+                return getattr(self._wrapped_obj, attr)
+            
+            
+
 
         rtn_mcr_plus = []
 
@@ -444,18 +473,17 @@ class BaseForest(MultiOutputMixin, BaseEnsemble, metaclass=ABCMeta):
             mm = self.get_specific_forest_from_mcr_set(var_idx = X.columns.tolist().index(var), force_use = mcr_plus)
             
             old_class = mm.__class__
-            old_tree_class = mm.estimators_[0].__class__
             
             mm.__class__ = sklrf
             for i,e in enumerate(mm.estimators_):
-                mm.estimators_[i].__class__ = lambda: sklearn.tree._tree.Tree  
+                mm.estimators_[i] = Wrapper(mm.estimators_[i]) 
             explainerm = shap.TreeExplainer(mm, X, check_additivity=False)
             shap_values_randomm = explainerm.shap_values(X, check_additivity=False)
             rtn_mcr_plus.append( shap_values_randomm[1][:,i] ) 
 
             mm.__class__ = old_class
             for i,e in enumerate(mm.estimators_):
-                mm.estimators_[i].__class__= old_tree_class
+                mm.estimators_[i] = mm.estimators_[i]._wrapped_obj
 
         
         if mcr_plus:
