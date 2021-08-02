@@ -344,6 +344,16 @@ class BaseForest(MultiOutputMixin, BaseEnsemble, metaclass=ABCMeta):
         return f'-->{",".join(self.human_readable_history)}'
 
     def set_mcr_state(self, force_use, var_indexs, debug = True, verbose = 0 ):
+
+        # Check if we have computed the state previously, if not throw and error
+        # TODO: could potenitally simply call MCR here if need be (with default params?)
+
+        if force_use:
+            if not str(var_indexs) in self.estimators_p:
+                raise Exception(f'MCR was not called previously for the specified variable / variable group. \nYou must first call: mcr(..., indices_to_permute = {str(var_indexs)}' )
+        else:
+            if not str(var_indexs) in self.estimators_m:
+                raise Exception(f'MCR was not called previously for the specified variable / variable group. \nYou must first call: mcr(..., indices_to_permute = {str(var_indexs)}' )
         
         if not isinstance(var_indexs, np.ndarray):
             raise Exception(f'var_indexes is expected to be a numpy array, was {var_indexs} of type(var_indexs): {type(var_indexs)}')
@@ -413,18 +423,19 @@ class BaseForest(MultiOutputMixin, BaseEnsemble, metaclass=ABCMeta):
 
     
 
-    def mcr_shap_plot(self, X, mcr_plus = True, plot_size = None, sort = True):
+    def mcr_shap_plot(self, X, variables_of_interest = None, mcr_plus = True, plot_size = None, sort = True):
         print('WARNING: This function is still in development.')
         
 
-       
+        if variables_of_interest is None:
+           variables_of_interest = X.columns.tolist()
 
     
         # Check if 
         # (1) the model has been fit
         # (2) MCR has been called with no groupings
         print('WARNING: Ensure that the model has been fit')
-        print('WARNING: Ensure plot_mcr(...) has been called with no groupings. This is currently not checked.')
+        print('WARNING: Ensure either mcr(...) or plot_mcr(...) has been called with no groupings. This is currently not checked.')
         
 
         import shap
@@ -477,9 +488,8 @@ class BaseForest(MultiOutputMixin, BaseEnsemble, metaclass=ABCMeta):
             
         rtn_mcr_plus = []
 
-        
-
-        for i, var in enumerate(X.columns.tolist()):
+    
+        for i, var in enumerate(variables_of_interest):
             mm = self.get_specific_forest_from_mcr_set(var_idx = X.columns.tolist().index(var), force_use = mcr_plus)
             
             old_class = mm.__class__
@@ -501,10 +511,41 @@ class BaseForest(MultiOutputMixin, BaseEnsemble, metaclass=ABCMeta):
         else:
             cmp = cmp_min
 
-        shap.summary_plot(np.asarray(rtn_mcr_plus).T, X, show = False, sort = sort, plot_size = plot_size, cmap=cmp, max_display = X.shape[1])
+        shap.summary_plot(np.asarray(rtn_mcr_plus).T, X[[variables_of_interest]], show = False, sort = sort, plot_size = plot_size, cmap=cmp, max_display = X.shape[1])
 
         # returns the SHAP values (# samples x # features).
-        return np.asarray(rtn_mcr_plus).T
+        rtn = pd.DataFrame(np.asarray(rtn_mcr_plus).T, columns = variables_of_interest)
+        
+        if mcr_plus:
+            rtn.is_mcr_plus = True
+        else:
+            rtn.is_mcr_plus = False
+
+        return rtn
+
+    def precomputed_mcr_shap_plot(self, precomputed_mcr_plus_dataframe, X, plot_size = None, sort = True  ):
+        import shap
+        import seaborn as sns
+
+        if not hasattr(precomputed_mcr_plus_dataframe, is_mcr_plus):
+            raise Exception(f'DataFrame passed to precomputed_mcr_plus_dataframe is not one computed via the function mcr_shap_plot(...)')
+
+        mcr_plus = precomputed_mcr_plus_dataframe.is_mcr_plus
+
+        variables_of_interest = precomputed_mcr_plus_dataframe.columns.tolist()
+
+        cmp_min = sns.dark_palette("#FF8A57FF", reverse=False, as_cmap=True)
+        cmp_max = sns.dark_palette("#97BC62FF", reverse=False, as_cmap=True)
+        
+        if mcr_plus:
+            cmp = cmp_max
+        else:
+            cmp = cmp_min
+
+        shap.summary_plot(precomputed_mcr_plus_dataframe.values, X[[variables_of_interest]], show = False, sort = sort, plot_size = plot_size, cmap=cmp, max_display = X.shape[1])
+
+    
+    
 
 
     def mcr(self, X_in, y_in, indices_to_permute, 
