@@ -517,9 +517,9 @@ class BaseForest(MultiOutputMixin, BaseEnsemble, metaclass=ABCMeta):
         rtn = pd.DataFrame(np.asarray(rtn_mcr_plus).T, columns = variables_of_interest)
         
         if mcr_plus:
-            rtn.is_mcr_plus = True
+            rtn.attrs['is_mcr_plus'] = True
         else:
-            rtn.is_mcr_plus = False
+            rtn.attrs['is_mcr_plus'] = False
 
         return rtn
 
@@ -527,10 +527,10 @@ class BaseForest(MultiOutputMixin, BaseEnsemble, metaclass=ABCMeta):
         import shap
         import seaborn as sns
 
-        if not hasattr(precomputed_mcr_plus_dataframe, is_mcr_plus):
+        if not 'is_mcr_plus' in precomputed_mcr_plus_dataframe.attrs:
             raise Exception(f'DataFrame passed to precomputed_mcr_plus_dataframe is not one computed via the function mcr_shap_plot(...)')
 
-        mcr_plus = precomputed_mcr_plus_dataframe.is_mcr_plus
+        mcr_plus = precomputed_mcr_plus_dataframe.attrs['is_mcr_plus']
 
         variables_of_interest = precomputed_mcr_plus_dataframe.columns.tolist()
 
