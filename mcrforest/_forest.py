@@ -511,7 +511,7 @@ class BaseForest(MultiOutputMixin, BaseEnsemble, metaclass=ABCMeta):
         else:
             cmp = cmp_min
 
-        shap.summary_plot(np.asarray(rtn_mcr_plus).T, X[[variables_of_interest]], show = False, sort = sort, plot_size = plot_size, cmap=cmp, max_display = X.shape[1])
+        shap.summary_plot(np.asarray(rtn_mcr_plus).T, X[variables_of_interest], show = False, sort = sort, plot_size = plot_size, cmap=cmp, max_display = X.shape[1])
 
         # returns the SHAP values (# samples x # features).
         rtn = pd.DataFrame(np.asarray(rtn_mcr_plus).T, columns = variables_of_interest)
