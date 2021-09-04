@@ -1,8 +1,17 @@
 # mcrforest
 
-This repository contains the code from our 2020 NeurIPS paper:
+An implementation of Model Class Reliance for Random Forests (RF-MCR), including Group-MCR. 
 
+Variable Importance: Explains the importance of a variable in a single, typically arbitrary, machine learnt model.
+Model Class Reliance: Explains the underpining phenomena (under mild assumptions) across all models with equally optimal performance.
+
+See this [3 Minute Explainer Video](https://slideslive.com/38937760/model-class-reliance-mcr-for-random-forests).
+
+RF-MCR is introduced in:
 *Smith, G., Mansilla, R. and Goulding, J. "Model Class Reliance for Random Forests". 34th Conference on Neural Information Processing Systems (NeurIPS 2020), Vancouver, Canada.*
+
+Group-MCR for RF-MCR is introduced in:
+*Ljevar, V., Goulding, J., Smith, G. and Spence, A. "Using Model Class Reliance to measure group effect on adherence to asthma medication". (Under Review).*
 
 ## Installation
 Install for use via pip:
@@ -31,7 +40,8 @@ mcrforest includes an additional method which can be called after training a mod
 mcr(X_in, y_in, indices_to_permute, num_times = 100, mcr_type = 1, seed = 13111985)
 ```
 
-Computes and MCR+ or MCR- score of a variable or group of variables.
+Computes and MCR+ or MCR- score of a variable or group of variables. Low level function to MCR. 
+See plot_mcr(...) for high level function that is often more useful in practice.
 
 *Parameters:*
 ```
@@ -42,19 +52,6 @@ num_times (int): The number of times to permute the index/indices.
 mcr_type (int): 1 for MCR+, -1 for MCR-.
 seed (int): A seed to control the permutation randomness.
 ```
-
-### Replication of results from the paper
-Synthetic Experiments:
-https://colab.research.google.com/drive/1UuORvqSYW14eiBX3nzz2WWUrjQAXcvFw
-
-COMPAS Experiments:
-https://colab.research.google.com/drive/1-hWJ4DNOnvrLz4fxGd--NJjGHV26TIei
-
-Breast Cancer Experiments
-https://colab.research.google.com/drive/16HGlytaraR6Kn4EmqKk0_Q9Nl7O_hU5F
-
-RF-MCR Analysis:
-https://colab.research.google.com/drive/1AMDW9Ss69QEzgBkMgx8Tw_zIpcZnMcr4
 
 
 ### Example Usage A
@@ -94,7 +91,8 @@ Method of an mcrforest.forest.RandomForestRegressor or  mcrforest.forest.RandomF
 
 plot_mcr(X_in, y_in, feature_names = None, feature_groups_of_interest = 'all individual features', num_times = 100, show_fig = True)
 
-Compute the required information for an MCR plot and optionally display the MCR plot.
+Compute the required information for an MCR plot and optionally display the MCR plot. 
+Groups of variables may be specified in which the Group-MCR extention will be used.
 
 Parameters
 ----------
@@ -107,13 +105,14 @@ feature_names : {array-like} of shape (n_features)
 feature_groups_of_interest : {str or numpy array of numpy arrays}
     Either:
     1. 'all individual features': compute the MCR+/- for all features individually. Equvilent to: [[x] for x in range(len(feature_names))]
-    2. A numpy array where each element is a numpy array of variable indexes which will be jointly permuated (i.e. these indexes will be considered a single unit of analysis for MCR)
+    2. A numpy array where each element is a numpy array of variable indexes (group of variables) which will be jointly permuated (i.e. these indexes will be considered a single unit of analysis for MCR)
        A single MCR+ and single MCR- score (plotted as a single bar in the graph) will be computed for each sub-array.
 num_times : int
         The number of permutations to use when computing the MCR.
 show_fig : bool
         If True show the MCR graph. In either case a dataframe with the information that would have been shown in the graph is returned.
-
+pdf_file: str
+                If not None, a path to save a pdf of the graph to.
 Returns
 -------
 rf_results2 : {pandas DataFrame} of shape (2*[number_of_features OR len(feature_groups_of_interest)], 3)
@@ -197,3 +196,23 @@ mcrforest requires sklearn version >= 0.23. Ensure you reinstall mcrforest after
 `Cannot open include file: 'basetsd.h': No such file or directory`
 You need to ensure you have the correct compilers for Windows installed since the package uses Cython.
 Install the correct compilers for your version of python from: https://wiki.python.org/moin/WindowsCompilers
+
+
+### Replication of results from our 2020 NeurIPS paper
+
+*Smith, G., Mansilla, R. and Goulding, J. "Model Class Reliance for Random Forests". 34th Conference on Neural Information Processing Systems (NeurIPS 2020), Vancouver, Canada.*
+
+Synthetic Experiments:
+https://colab.research.google.com/drive/1UuORvqSYW14eiBX3nzz2WWUrjQAXcvFw
+
+COMPAS Experiments:
+https://colab.research.google.com/drive/1-hWJ4DNOnvrLz4fxGd--NJjGHV26TIei
+
+Breast Cancer Experiments
+https://colab.research.google.com/drive/16HGlytaraR6Kn4EmqKk0_Q9Nl7O_hU5F
+
+RF-MCR Analysis:
+https://colab.research.google.com/drive/1AMDW9Ss69QEzgBkMgx8Tw_zIpcZnMcr4
+
+The above code was run with the following version:
+pip install git+https://github.com/gavin-s-smith/mcrforest@NeurIPS
