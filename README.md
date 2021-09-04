@@ -1,4 +1,4 @@
-# mcrforest
+# Model Class Reliance for Random Forests (package: mcrforest)
 
 An implementation of **Model Class Reliance** for Random Forests (RF-MCR), including Group-MCR. 
 
