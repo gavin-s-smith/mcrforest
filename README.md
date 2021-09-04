@@ -2,15 +2,15 @@
 
 An implementation of Model Class Reliance for Random Forests (RF-MCR), including Group-MCR. 
 
-Variable Importance: Explains the importance of a variable in a single, typically arbitrary, machine learnt model.
-Model Class Reliance: Explains the underpining phenomena (under mild assumptions) across all models with equally optimal performance.
+**Variable Importance:** Explains the importance of a variable in a single, typically arbitrary, machine learnt model.  
+**Model Class Reliance:** Explains the underpining phenomena (under mild assumptions) across all models with equally optimal performance.
 
 See this [3 Minute Explainer Video](https://slideslive.com/38937760/model-class-reliance-mcr-for-random-forests).
 
-RF-MCR is introduced in:
+**RF-MCR is introduced in:**  
 *Smith, G., Mansilla, R. and Goulding, J. "Model Class Reliance for Random Forests". 34th Conference on Neural Information Processing Systems (NeurIPS 2020), Vancouver, Canada.*
 
-Group-MCR for RF-MCR is introduced in:
+**Group-MCR for RF-MCR is introduced in:**  
 *Ljevar, V., Goulding, J., Smith, G. and Spence, A. "Using Model Class Reliance to measure group effect on adherence to asthma medication". (Under Review).*
 
 ## Installation
