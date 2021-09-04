@@ -8,7 +8,7 @@ An implementation of Model Class Reliance for Random Forests (RF-MCR), including
 See this [3 Minute Explainer Video](https://slideslive.com/38937760/model-class-reliance-mcr-for-random-forests).
 
 **RF-MCR is introduced in:**  
-*Smith, G., Mansilla, R. and Goulding, J. "Model Class Reliance for Random Forests". 34th Conference on Neural Information Processing Systems (NeurIPS 2020), Vancouver, Canada.*
+*Smith, G., Mansilla, R. and Goulding, J. "Model Class Reliance for Random Forests". 34th Conference on Neural Information Processing Systems (NeurIPS 2020), Vancouver, Canada.*  
 [Paper](https://proceedings.neurips.cc/paper/2020/hash/fd512441a1a791770a6fa573d688bff5-Abstract.html) | [Supplementary Material](https://proceedings.neurips.cc/paper/2020/file/fd512441a1a791770a6fa573d688bff5-Supplemental.pdf) 
 
 **Group-MCR for RF-MCR is introduced in:**  
