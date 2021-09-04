@@ -1,6 +1,6 @@
 # mcrforest
 
-An implementation of Model Class Reliance for Random Forests (RF-MCR), including Group-MCR. 
+An implementation of **Model Class Reliance** for Random Forests (RF-MCR), including Group-MCR. 
 
 **Variable Importance:** Explains the importance of a variable in a single, typically arbitrary, machine learnt model.  
 **Model Class Reliance:** Explains the underpining phenomena (under mild assumptions) by considering all models with equally optimal performance.
