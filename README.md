@@ -1,4 +1,4 @@
-# Model Class Reliance for Random Forests (package: mcrforest)
+# Model Class Reliance for Random Forests (python package: mcrforest)
 
 An implementation of **Model Class Reliance** for Random Forests (RF-MCR), including Group-MCR. 
 
