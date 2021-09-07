@@ -505,7 +505,10 @@ class BaseForest(MultiOutputMixin, BaseEnsemble, metaclass=ABCMeta):
             #print(shap_values_randomm)
             #print(shap_values_randomm.shape)
             #print(var_idx)
-            rtn_mcr_plus.append( shap_values_randomm[:,var_idx] ) 
+            if is_classifier(self):
+                rtn_mcr_plus.append( shap_values_randomm[1][:,var_idx] ) 
+            else:
+                rtn_mcr_plus.append( shap_values_randomm[:,var_idx] ) 
 
             mm.__class__ = old_class
             for idx,e in enumerate(mm.estimators_):
