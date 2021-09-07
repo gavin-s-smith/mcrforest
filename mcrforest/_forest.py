@@ -502,7 +502,10 @@ class BaseForest(MultiOutputMixin, BaseEnsemble, metaclass=ABCMeta):
                 mm.estimators_[idx].tree_ = Wrapper(mm.estimators_[idx].tree_) 
             explainerm = shap.TreeExplainer(mm, X, check_additivity=False)
             shap_values_randomm = explainerm.shap_values(X, check_additivity=False)
-            rtn_mcr_plus.append( shap_values_randomm[1][:,var_idx] ) 
+            print(shap_values_randomm)
+            print(shap_values_randomm.shape)
+            print(var_idx)
+            rtn_mcr_plus.append( shap_values_randomm[:,var_idx] ) 
 
             mm.__class__ = old_class
             for idx,e in enumerate(mm.estimators_):
