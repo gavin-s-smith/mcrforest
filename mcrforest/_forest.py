@@ -1484,7 +1484,7 @@ class BaseForest(MultiOutputMixin, BaseEnsemble, metaclass=ABCMeta):
                     print('a: {}'.format(a))
                     print('b: {}'.format(b))
                     print(f'Tree idx: {tidx}, variable idx: {i}')
-                    raise Exception('MAJOR SURROGATE ERROR WITH MCR+. Or you forgot to set bootstrap = False.')
+                    raise Exception('MAJOR SURROGATE ERROR WITH MCR+. Or you forgot to set bootstrap = False. V3')
                 #if a != c:
                 #    raise Exception('MAJOR SURROGATE ERROR WITH MCR-. Or you forgot to set bootstrap = False.')
 
