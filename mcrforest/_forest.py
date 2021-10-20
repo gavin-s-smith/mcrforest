@@ -1484,7 +1484,9 @@ class BaseForest(MultiOutputMixin, BaseEnsemble, metaclass=ABCMeta):
                     print('a: {}'.format(a))
                     print('b: {}'.format(b))
                     print(f'Tree idx: {tidx}, variable idx: {i}')
-                    raise Exception('MAJOR SURROGATE ERROR WITH MCR+. Or you forgot to set bootstrap = False. V3')
+                    print(y)
+                    print(t.predict_vim(X,np.asarray([i], dtype=np.int64), mcr_ordering_pre, mcr_ordering_others, mcr_ordering_post))
+                    raise Exception('MAJOR SURROGATE ERROR WITH MCR+. Or you forgot to set bootstrap = False.')
                 #if a != c:
                 #    raise Exception('MAJOR SURROGATE ERROR WITH MCR-. Or you forgot to set bootstrap = False.')
 
