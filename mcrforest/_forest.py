@@ -1478,6 +1478,7 @@ class BaseForest(MultiOutputMixin, BaseEnsemble, metaclass=ABCMeta):
                 #b = mean_squared_error(y[5], t.predict_vim(X[5,:].reshape(1,-1),np.asarray([i]), 1))
                 #c = mean_squared_error(y, t.predict_vim(X,np.asarray([i], dtype=np.int64), -1))
                 if a != b:
+                    print(f'is_classifier(self): {is_classifier(self)}')
                     print('np.asarray([i], dtype=np.int64): {}'.format(np.asarray([i], dtype=np.int64)))
                     print('Bootstrap: {}'.format(self.bootstrap))
                     print('a: {}'.format(a))
