@@ -649,6 +649,10 @@ cdef class BestSplitter(BaseDenseSplitter):
                 if found_phase1 == (best.pos-start) and fabs(Xf[best.pos-1] - Xf[best.pos]) > FEATURE_THRESHOLD: # COMMENT OUT FOR NEW
                     # now find the threshold
                     surrogate_threshold = (Xf[best.pos-1] + Xf[best.pos])/2.0
+                    if debug == 1:
+                        with gil:
+                            print(f'(Xf[best.pos-1] + Xf[best.pos])/2.0: {Xf[best.pos-1]} + {Xf[best.pos]}/2.0 = {surrogate_threshold}')
+                        
                     found_phase1 = 1 # found
                 else:
                     found_phase1 = 9999
