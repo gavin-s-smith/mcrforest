@@ -56,7 +56,7 @@ cdef class Splitter:
     cdef SIZE_t* features                # Feature indices in X
     cdef SIZE_t* constant_features       # Constant features indices
     cdef SIZE_t n_features               # X.shape[1]
-    cdef double* feature_values         # temp. array holding feature values
+    cdef DTYPE_t* feature_values         # temp. array holding feature values
     cdef SIZE_t* feature_values_best_order 
     cdef SIZE_t* feature_values_surrogate_order 
     cdef SIZE_t* potential_surrogates

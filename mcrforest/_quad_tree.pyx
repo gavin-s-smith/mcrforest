@@ -617,7 +617,7 @@ cdef class _QuadTree:
 
         cdef:
             DTYPE_t[3] query_pt
-            float* summary
+            DTYPE_t* summary
             int i, n_samples, n_dimensions
 
         n_dimensions = 2
@@ -630,7 +630,7 @@ cdef class _QuadTree:
         qt = _QuadTree(n_dimensions, verbose=0)
         qt.build_tree(X)
 
-        summary = <float*> malloc(sizeof(float) * n_samples * 4)
+        summary = <DTYPE_t*> malloc(sizeof(DTYPE_t) * n_samples * 4)
 
         for i in range(n_dimensions):
             query_pt[i] = X[0, i]
