@@ -1319,6 +1319,9 @@ class BaseForest(MultiOutputMixin, BaseEnsemble, metaclass=ABCMeta):
 
         return sparse_hstack(indicators).tocsr(), n_nodes_ptr
 
+    def debug(self):
+        print('heelo')
+
     def fit(self, X, y, sample_weight=None):
         """
         Build a forest of trees from the training set (X, y).
