@@ -513,7 +513,7 @@ cdef class BestSplitter(BaseDenseSplitter):
 
 
             # GAVIN - WORK OUT AND STORE SURROGATES
-            if debug == 1:
+            if best.feature == 17: #debug == 1:
                 with gil:
                     print('Best found feature: {}'.format(best.feature))
                     print('Best split: {} - {} - {}'.format(start, best.pos, end))
