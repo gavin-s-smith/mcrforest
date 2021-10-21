@@ -21,7 +21,7 @@ cimport numpy as np
 np.import_array()
 
 cdef extern from "math.h":
-    float fabsf(float x) nogil
+    double fabs(double x) nogil
 
 cdef extern from "numpy/arrayobject.h":
     object PyArray_NewFromDescr(PyTypeObject* subtype, np.dtype descr,
@@ -275,7 +275,7 @@ cdef class _QuadTree:
         cdef bint res = True
         for i in range(self.n_dimensions):
             # Use EPSILON to avoid numerical error that would overgrow the tree
-            res &= fabsf(point1[i] - point2[i]) <= EPSILON
+            res &= fabs(point1[i] - point2[i]) <= EPSILON
         return res
 
 
@@ -439,7 +439,7 @@ cdef class _QuadTree:
         for i in range(self.n_dimensions):
             results[idx + i] = point[i] - cell.barycenter[i]
             results[idx_d] += results[idx + i] * results[idx + i]
-            duplicate &= fabsf(results[idx + i]) <= EPSILON
+            duplicate &= fabs(results[idx + i]) <= EPSILON
 
         # Do not compute self interactions
         if duplicate and cell.is_leaf:
