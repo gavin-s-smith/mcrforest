@@ -51,7 +51,7 @@ cdef extern from "numpy/arrayobject.h":
 # Types and constants
 # =============================================================================
 
-from numpy import float32 as DTYPE
+from numpy import float64 as DTYPE
 from numpy import float64 as DOUBLE
 
 cdef double INFINITY = np.inf
