@@ -35,9 +35,9 @@ CELL_DTYPE = np.dtype({
     'names': ['parent', 'children', 'cell_id', 'point_index', 'is_leaf',
               'max_width', 'depth', 'cumulative_size', 'center', 'barycenter',
               'min_bounds', 'max_bounds'],
-    'formats': [np.intp, (np.intp, 8), np.intp, np.intp, np.int32, np.float32,
-                np.intp, np.intp, (np.float32, 3), (np.float32, 3),
-                (np.float32, 3), (np.float32, 3)],
+    'formats': [np.intp, (np.intp, 8), np.intp, np.intp, np.int32, np.float64,
+                np.intp, np.intp, (np.float64, 3), (np.float64, 3),
+                (np.float64, 3), (np.float64, 3)],
     'offsets': [
         <Py_ssize_t> &(<Cell*> NULL).parent,
         <Py_ssize_t> &(<Cell*> NULL).children,
