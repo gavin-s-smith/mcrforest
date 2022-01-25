@@ -601,7 +601,7 @@ class BaseForest(MultiOutputMixin, BaseEnsemble, metaclass=ABCMeta):
         custom_scorer: None or a custom function with signiture: score_func(y, y_pred) where y and y_pred are arrays and the function returns a single score.
         """
 
-
+        check_is_fitted(self)
         
         is_classification = is_classifier(self)
 
@@ -1047,6 +1047,8 @@ class BaseForest(MultiOutputMixin, BaseEnsemble, metaclass=ABCMeta):
                 Where the column variable contains the variable name and the columns MCR+ and MCR- contain the variable's MCR+ and MCR- scores respectively.
         """   
 
+
+        check_is_fitted(self)
             
         if isinstance(X_in, pd.DataFrame):
             X = X_in.values

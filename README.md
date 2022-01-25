@@ -62,10 +62,14 @@ import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 from mcrforest.forest import RandomForestRegressor
+from sklearn.model_selection import GridSearchCV
+from mcrforest.Datasets import get_demo_dataset
 
 # Load data
-X_train = pd.read_csv('X_train.csv')
-y_train = pd.read_csv('y_train.csv')
+# If loading from csv, use something like
+# X_train = pd.read_csv('X_train.csv')
+# y_train = pd.read_csv('X_train.csv').values.ravel()
+X_train, y_train = get_demo_dataset()
 
 # If we are going to use the training set for computing MCR then we MUST ensure 
 # we have controlled the complexity of the fit. This is equally true for traditional
@@ -81,7 +85,7 @@ rf_cv_model.fit(X_train,y_train)
 
 # Refit with best parameters
 model = RandomForestRegressor( **rf_cv_model.best_params_ )
-
+model.fit(X_train, y_train)
 model.plot_mcr(X_train, y_train)
 
 ```
@@ -130,10 +134,14 @@ import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 from mcrforest.forest import RandomForestRegressor
+from sklearn.model_selection import GridSearchCV
+from mcrforest.Datasets import get_demo_dataset
 
 # Load data
-X_train = pd.read_csv('X_train.csv')
-y_train = pd.read_csv('y_train.csv')
+# If loading from csv, use something like
+# X_train = pd.read_csv('X_train.csv')
+# y_train = pd.read_csv('X_train.csv').values.ravel()
+X_train, y_train = get_demo_dataset()
 
 # If we are going to use the training set for computing MCR then we MUST ensure 
 # we have controlled the complexity of the fit. This is equally true for traditional
@@ -150,18 +158,20 @@ rf_cv_model.fit(X_train,y_train)
 # Refit with best parameters
 model = RandomForestRegressor( **rf_cv_model.best_params_ )
 
+model.fit(X_train,y_train)
+
 # Compute MCR+ for each variable
 results = []
 groups_of_indicies_to_permute = [[x] for x in range(len(X_train.columns))]
 
 for gp in groups_of_indicies_to_permute:
-    rn = model.mcr(X_train.values,y_train.values, np.asarray(gp) ,  num_times = 20, mcr_type = 1)
+    rn = model.mcr(X_train,y_train, np.asarray(gp) ,  num_times = 20, mcr_type = 1)
     results.append([','.join([list(X_train.columns)[x] for x in gp]), 'RF-MCR+', rn])
 
 
 # Compute MCR- for each variable
 for gp in groups_of_indicies_to_permute:
-    rn = model.mcr(X_train.values,y_train.values, np.asarray(gp) ,  num_times = 20,  mcr_type = -1)
+    rn = model.mcr(X_train,y_train, np.asarray(gp) ,  num_times = 20,  mcr_type = -1)
     results.append([','.join([list(X_train.columns)[x] for x in gp]), 'RF-MCR-', rn])
 
 
