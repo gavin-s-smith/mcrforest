@@ -12,7 +12,8 @@ See this [3 Minute Explainer Video](https://slideslive.com/38937760/model-class-
 [Paper](https://proceedings.neurips.cc/paper/2020/hash/fd512441a1a791770a6fa573d688bff5-Abstract.html) | [Supplementary Material](https://proceedings.neurips.cc/paper/2020/file/fd512441a1a791770a6fa573d688bff5-Supplemental.pdf) 
 
 **Group-MCR for RF-MCR is introduced in:**  
-*Ljevar, V., Goulding, J., Smith, G. and Spence, A. "Using Model Class Reliance to measure group effect on adherence to asthma medication". (IEEE International Conference on Big Data (Big Data). IEEE, 2021.).* [Pre-print](http://www.cs.nott.ac.uk/~pszgss/Using_Model_Class_Reliance_to_measure_group_effect_on_adherence_to_asthma_medication.pdf) | [Proceedings](https://ieeexplore.ieee.org/abstract/document/9671559) 
+*Ljevar, V., Goulding, J., Smith, G. and Spence, A. "Using Model Class Reliance to measure group effect on adherence to asthma medication". (IEEE International Conference on Big Data (Big Data). IEEE, 2021.).* 
+[Pre-print](http://www.cs.nott.ac.uk/~pszgss/Using_Model_Class_Reliance_to_measure_group_effect_on_adherence_to_asthma_medication.pdf) | [Proceedings](https://ieeexplore.ieee.org/abstract/document/9671559) 
 
 ## Installation
 Install for use via pip:
