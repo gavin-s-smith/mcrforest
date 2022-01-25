@@ -3,7 +3,7 @@
 import sys
 # mypy error: Module X has no attribute y (typically for C extensions)
 from . import _forest  # type: ignore
-from sklearn.externals._pep562 import Pep562
+from ._pep562 import Pep562
 
 #deprecated_path = 'mcrforest'
 #correct_import_path = 'mcrforest'
