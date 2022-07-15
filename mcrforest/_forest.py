@@ -59,7 +59,7 @@ from ._tree import DTYPE, DOUBLE
 from sklearn.utils import check_random_state, check_array, compute_sample_weight
 from sklearn.exceptions import DataConversionWarning
 from ._base import BaseEnsemble, _partition_estimators
-from sklearn.utils.fixes import _joblib_parallel_args
+#from sklearn.utils.fixes import _joblib_parallel_args
 from sklearn.utils.multiclass import check_classification_targets
 from sklearn.utils.validation import check_is_fitted, _check_sample_weight
 from sklearn.utils.validation import _deprecate_positional_args
