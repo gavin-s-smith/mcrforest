@@ -709,7 +709,7 @@ class BaseForest(MultiOutputMixin, BaseEnsemble, metaclass=ABCMeta):
                 per_fplus_tree_preds[eidx,:] = self.predict_vim_tree(self.estimators_[eidx],X_perm, indices_to_permute, mcr_ordering_pre, mcr_ordering_others, mcr_ordering_post)
         
         else:
-            Parallel(n_jobs=self.n_jobs, verbose=self.verbose, **_joblib_parallel_args(require="sharedmem"))(delayed(collate_parallel)(eidx) for eidx in range(n_trees))
+            Parallel(n_jobs=self.n_jobs, verbose=self.verbose, require="sharedmem")(delayed(collate_parallel)(eidx) for eidx in range(n_trees))
                 
                                                                    
         
@@ -1277,8 +1277,7 @@ class BaseForest(MultiOutputMixin, BaseEnsemble, metaclass=ABCMeta):
             return the index of the leaf x ends up in.
         """
         X = self._validate_X_predict(X)
-        results = Parallel(n_jobs=self.n_jobs, verbose=self.verbose,
-                           **_joblib_parallel_args(prefer="threads"))(
+        results = Parallel(n_jobs=self.n_jobs, verbose=self.verbose,prefer="threads")(
             delayed(tree.apply)(X, check_input=False)
             for tree in self.estimators_)
 
@@ -1311,7 +1310,7 @@ class BaseForest(MultiOutputMixin, BaseEnsemble, metaclass=ABCMeta):
         """
         X = self._validate_X_predict(X)
         indicators = Parallel(n_jobs=self.n_jobs, verbose=self.verbose,
-                              **_joblib_parallel_args(prefer='threads'))(
+                              prefer='threads')(
             delayed(tree.decision_path)(X, check_input=False)
             for tree in self.estimators_)
 
@@ -1442,7 +1441,7 @@ class BaseForest(MultiOutputMixin, BaseEnsemble, metaclass=ABCMeta):
             # parallel_backend contexts set at a higher level,
             # since correctness does not rely on using threads.
             trees = Parallel(n_jobs=self.n_jobs, verbose=self.verbose,
-                             **_joblib_parallel_args(prefer='threads'))(
+                             prefer='threads')(
                 delayed(_parallel_build_trees)(
                     t, self, X, y, sample_weight, i, len(trees),
                     verbose=self.verbose, class_weight=self.class_weight,
@@ -1612,7 +1611,7 @@ class BaseForest(MultiOutputMixin, BaseEnsemble, metaclass=ABCMeta):
         check_is_fitted(self)
 
         all_importances = Parallel(n_jobs=self.n_jobs,
-                                   **_joblib_parallel_args(prefer='threads'))(
+                                   prefer='threads')(
             delayed(getattr)(tree, 'feature_importances_')
             for tree in self.estimators_ if tree.tree_.node_count > 1)
 
@@ -1898,7 +1897,7 @@ class ForestClassifier(ClassifierMixin, BaseForest, metaclass=ABCMeta):
                      for j in np.atleast_1d(self.n_classes_)]
         lock = threading.Lock()
         Parallel(n_jobs=n_jobs, verbose=self.verbose,
-                 **_joblib_parallel_args(require="sharedmem"))(
+                 require="sharedmem")(
             delayed(_accumulate_prediction)(e.predict_proba, X, all_proba,
                                             lock)
             for e in self.estimators_)
@@ -1947,7 +1946,7 @@ class ForestClassifier(ClassifierMixin, BaseForest, metaclass=ABCMeta):
     
         lock = threading.Lock()
         Parallel(n_jobs=n_jobs, verbose=self.verbose,
-                 **_joblib_parallel_args(require="sharedmem"))(
+                 require="sharedmem")(
             delayed(_accumulate_prediction)(e.predict_proba_vim, (X,permuted_vars, mcr_ordering_pre, mcr_ordering_others, mcr_ordering_post ), all_proba,
                                             lock)
             for e in self.estimators_)
@@ -2068,7 +2067,7 @@ class ForestRegressor(RegressorMixin, BaseForest, metaclass=ABCMeta):
         # Parallel loop
         lock = threading.Lock()
         Parallel(n_jobs=n_jobs, verbose=self.verbose,
-                 **_joblib_parallel_args(require="sharedmem"))(
+                 require="sharedmem")(
             delayed(_accumulate_prediction)(e.predict_vim_from_parallel_fn, (X,permuted_indices,mcr_ordering_pre, mcr_ordering_others, mcr_ordering_post), [y_hat], lock)
             for e in self.estimators_)
 
@@ -2112,7 +2111,7 @@ class ForestRegressor(RegressorMixin, BaseForest, metaclass=ABCMeta):
         # Parallel loop
         lock = threading.Lock()
         Parallel(n_jobs=n_jobs, verbose=self.verbose,
-                 **_joblib_parallel_args(require="sharedmem"))(
+                 require="sharedmem")(
             delayed(_accumulate_prediction)(e.predict, X, [y_hat], lock)
             for e in self.estimators_)
 

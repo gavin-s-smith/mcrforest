@@ -63,7 +63,7 @@ package_data = {'mcrforest': ['*.pxd']}
 
 setup(
     name = "mcrforest",
-    version='3.0.3',
+    version='3.1.0',
     description='Random Forest implementation with VIM',
     url='http://github.com/gavin-s-smith/mcrforest',
     author='Gavin Smith',
