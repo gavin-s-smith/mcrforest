@@ -556,7 +556,7 @@ cdef class _QuadTree:
     # Array manipulation methods, to convert it to numpy or to resize
     # self.cells array
 
-    cdef np.ndarray _get_cell_ndarray(self):
+    cdef cnp.ndarray _get_cell_ndarray(self):
         """Wraps nodes as a NumPy struct array.
 
         The array keeps a reference to this Tree, which manages the underlying
