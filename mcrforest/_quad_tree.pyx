@@ -549,7 +549,7 @@ cdef class _QuadTree:
         if self._resize_c(self.capacity) != 0:
             raise MemoryError("resizing tree to %d" % self.capacity)
 
-        cells = memcpy(self.cells, (<np.ndarray> cell_ndarray).data,
+        cells = memcpy(self.cells, (<cnp.ndarray> cell_ndarray).data,
                        self.capacity * sizeof(Cell))
 
 
