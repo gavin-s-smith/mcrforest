@@ -705,11 +705,11 @@ cdef class BestSplitter(BaseDenseSplitter):
                             tmp_b.append(Xf_best_order[j])
                             offsetpy += 1
                             
-                        with gil:
-                            if found_phase2 == (best.pos-start) and abs(Xf[(end-(best.pos-start))-1] - Xf[(end-(best.pos-start))]) > FEATURE_THRESHOLD:
-                                print('[ACCEPT] STAGE II: Sur: {}, Best: {}'.format(tmp_s,tmp_b))
-                            else:
-                                print('[REJECT] STAGE II: Sur: {}, Best: {}'.format(tmp_s,tmp_b))
+                        
+                        if found_phase2 == (best.pos-start) and abs(Xf[(end-(best.pos-start))-1] - Xf[(end-(best.pos-start))]) > FEATURE_THRESHOLD:
+                            print('[ACCEPT] STAGE II: Sur: {}, Best: {}'.format(tmp_s,tmp_b))
+                        else:
+                            print('[REJECT] STAGE II: Sur: {}, Best: {}'.format(tmp_s,tmp_b))
 
                 # Here we compute the agreement. The data we have is for the left node. We infer for the right as we have binary splits.
                 # total_instances = end - start
