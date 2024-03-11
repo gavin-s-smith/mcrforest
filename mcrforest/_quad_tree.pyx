@@ -89,12 +89,12 @@ cdef class _QuadTree:
         # Free all inner structures
         free(self.cells)
 
-    property
+    @property
     def cumulative_size(self):
         cdef Cell[:] cell_mem_view = self._get_cell_ndarray()
         return cell_mem_view.base['cumulative_size'][:self.cell_count]
 
-    property
+    @property
     def leafs(self):
         cdef Cell[:] cell_mem_view = self._get_cell_ndarray()
         return cell_mem_view.base['is_leaf'][:self.cell_count]
