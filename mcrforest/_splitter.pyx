@@ -1326,9 +1326,13 @@ cdef class BaseSparseSplitter(Splitter):
                                          end_negative, start_positive)
 
 
-cdef int compare_SIZE_t(const void* a, const void* b) nogil:
-    """Comparison function for sort."""
-    return <int>((<SIZE_t*>a)[0] - (<SIZE_t*>b)[0])
+cdef int compare_SIZE_t(const void* a, const void* b) noexcept nogil:
+    """Comparison function for sort.
+
+    This must return an `int` as it is used by stdlib's qsort, which expects
+    an `int` return value.
+    """
+    return <int>((<intp_t*>a)[0] - (<intp_t*>b)[0])
 
 
 cdef inline void binary_search(INT32_t* sorted_array,
