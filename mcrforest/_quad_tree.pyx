@@ -567,7 +567,7 @@ cdef class _QuadTree:
         shape[0] = <cnp.npy_intp> self.cell_count
         cdef cnp.npy_intp strides[1]
         strides[0] = sizeof(Cell)
-        cdef np.ndarray arr
+        cdef cnp.ndarray arr
         Py_INCREF(CELL_DTYPE)
         arr = PyArray_NewFromDescr(<PyTypeObject *> np.ndarray,
                                    CELL_DTYPE, 1, shape,
