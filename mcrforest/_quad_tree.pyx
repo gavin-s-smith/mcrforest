@@ -572,8 +572,11 @@ cdef class _QuadTree:
                                    CELL_DTYPE, 1, shape,
                                    strides, <void*> self.cells,
                                    np.NPY_DEFAULT, None)
+        #Py_INCREF(self)
+        #arr.base = <PyObject*> self
         Py_INCREF(self)
-        arr.base = <PyObject*> self
+        if PyArray_SetBaseObject(arr.base, <PyObject*> self) < 0:
+            raise ValueError("Can't initialize array!")
         return arr
 
     cdef int _resize(self, SIZE_t capacity) nogil except -1:
