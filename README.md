@@ -15,6 +15,7 @@ See this [3 Minute Explainer Video](https://slideslive.com/38937760/model-class-
 
 ## Installation
 Install for use via pip:
+**NOTE: ** Currently you MUST use `cython<3`. I.e. run `pip install cython<3` to either install or downgrade before pip installing mcrforest.
 ```
 pip install git+https://github.com/gavin-s-smith/mcrforest
 ```

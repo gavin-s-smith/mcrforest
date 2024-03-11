@@ -25,7 +25,7 @@ ctypedef np.npy_uint32 UINT32_t          # Unsigned 32 bit integer
 
 from ._splitter cimport Splitter
 from ._splitter cimport SplitRecord
-
+ 
 cdef struct Node:
     # Base storage structure for the nodes in a Tree object
 
