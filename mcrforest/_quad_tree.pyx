@@ -571,7 +571,7 @@ cdef class _QuadTree:
         arr = PyArray_NewFromDescr(<PyTypeObject *> np.ndarray,
                                    CELL_DTYPE, 1, shape,
                                    strides, <void*> self.cells,
-                                   flags=cnp.NPY_ARRAY_DEFAULT, None)
+                                   flags=cnp.NPY_ARRAY_DEFAULT, obj=None)
         Py_INCREF(self)
         #arr.base = <PyObject*> self
         # Py_INCREF(self)
