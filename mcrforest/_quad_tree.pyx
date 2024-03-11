@@ -28,7 +28,7 @@ cdef extern from "numpy/arrayobject.h":
                                 int nd, np.npy_intp* dims,
                                 np.npy_intp* strides,
                                 void* data, int flags, object obj)
-    int PyArray_SetBaseObject(cnp.ndarray arr, PyObject* obj)
+    int PyArray_SetBaseObject(np.ndarray arr, PyObject* obj)
 
 
 # Repeat struct definition for numpy
