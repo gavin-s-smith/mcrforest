@@ -1332,7 +1332,7 @@ cdef int compare_SIZE_t(const void* a, const void* b) noexcept nogil:
     This must return an `int` as it is used by stdlib's qsort, which expects
     an `int` return value.
     """
-    return <int>((<intp_t*>a)[0] - (<intp_t*>b)[0])
+    return <int>((<Py_ssize_t*>a)[0] - (<Py_ssize_t*>b)[0])
 
 
 cdef inline void binary_search(INT32_t* sorted_array,
