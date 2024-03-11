@@ -536,7 +536,6 @@ cdef class _QuadTree:
         d["n_points"] = self.n_points
         d["cells"] = self._get_cell_ndarray()
         return d
-
     def __setstate__(self, d):
         """Setstate re-implementation, for unpickling."""
         self.max_depth = d["max_depth"]
@@ -559,8 +558,37 @@ cdef class _QuadTree:
         if self._resize_c(self.capacity) != 0:
             raise MemoryError("resizing tree to %d" % self.capacity)
 
-        cells = memcpy(self.cells, (<np.ndarray> cell_ndarray).data,
-                       self.capacity * sizeof(Cell))
+        cdef Cell[:] cell_mem_view = cell_ndarray
+        memcpy(
+            pto=self.cells,
+            pfrom=&cell_mem_view[0],
+            size=self.capacity * sizeof(Cell),
+        )
+        
+    # def __setstate__(self, d):
+    #     """Setstate re-implementation, for unpickling."""
+    #     self.max_depth = d["max_depth"]
+    #     self.cell_count = d["cell_count"]
+    #     self.capacity = d["capacity"]
+    #     self.n_points = d["n_points"]
+
+    #     if 'cells' not in d:
+    #         raise ValueError('You have loaded Tree version which '
+    #                          'cannot be imported')
+
+    #     cell_ndarray = d['cells']
+
+    #     if (cell_ndarray.ndim != 1 or
+    #             cell_ndarray.dtype != CELL_DTYPE or
+    #             not cell_ndarray.flags.c_contiguous):
+    #         raise ValueError('Did not recognise loaded array layout')
+
+    #     self.capacity = cell_ndarray.shape[0]
+    #     if self._resize_c(self.capacity) != 0:
+    #         raise MemoryError("resizing tree to %d" % self.capacity)
+
+    #     cells = memcpy(self.cells, (<np.ndarray> cell_ndarray).data,
+    #                    self.capacity * sizeof(Cell))
 
 
     # Array manipulation methods, to convert it to numpy or to resize
