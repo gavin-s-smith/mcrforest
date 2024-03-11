@@ -8,12 +8,12 @@
 # See quad_tree.pyx for details.
 
 import numpy as np
-cimport numpy as cnp
+cimport numpy as np
 
-ctypedef double DTYPE_t          # Type of X (GAVIN CHANGED)
-ctypedef Py_ssize_t SIZE_t              # Type for indices and counters
-ctypedef signed int INT32_t            # Signed 32 bit integer
-ctypedef unsigned int UINT32_t          # Unsigned 32 bit integer
+ctypedef np.npy_float64 DTYPE_t          # Type of X (GAVIN CHANGED)
+ctypedef np.npy_intp SIZE_t              # Type for indices and counters
+ctypedef np.npy_int32 INT32_t            # Signed 32 bit integer
+ctypedef np.npy_uint32 UINT32_t          # Unsigned 32 bit integer
 
 # This is effectively an ifdef statement in Cython
 # It allows us to write printf debugging lines
@@ -82,7 +82,7 @@ cdef class _QuadTree:
 
     # Create a summary of the Tree compare to a query point
     cdef long summarize(self, DTYPE_t[3] point, DTYPE_t* results,
-                        float squared_theta=*, SIZE_t cell_id=*, long idx=*
+                        float squared_theta=*, int cell_id=*, long idx=*
                         ) nogil
 
     # Internal cell initialization methods
@@ -98,4 +98,4 @@ cdef class _QuadTree:
     cdef int _resize(self, SIZE_t capacity) nogil except -1
     cdef int _resize_c(self, SIZE_t capacity=*) nogil except -1
     cdef int _get_cell(self, DTYPE_t[3] point, SIZE_t cell_id=*) nogil except -1
-    cdef Cell[:] _get_cell_ndarray(self)
+    cdef np.ndarray _get_cell_ndarray(self)

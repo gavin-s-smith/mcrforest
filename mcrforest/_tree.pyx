@@ -27,8 +27,8 @@ from libc.stdint cimport SIZE_MAX
 
 
 import numpy as np
-cimport numpy as cnp
-cnp.import_array()
+cimport numpy as np
+np.import_array()
 
 from scipy.sparse import issparse
 from scipy.sparse import csc_matrix
@@ -42,11 +42,10 @@ from ._utils cimport safe_realloc
 from ._utils cimport sizet_ptr_to_ndarray
 
 cdef extern from "numpy/arrayobject.h":
-    object PyArray_NewFromDescr(PyTypeObject* subtype, cnp.dtype descr,
-                                int nd, cnp.npy_intp* dims,
-                                cnp.npy_intp* strides,
+    object PyArray_NewFromDescr(PyTypeObject* subtype, np.dtype descr,
+                                int nd, np.npy_intp* dims,
+                                np.npy_intp* strides,
                                 void* data, int flags, object obj)
-    int PyArray_SetBaseObject(cnp.ndarray arr, PyObject* obj)
 
 # =============================================================================
 # Types and constants
@@ -191,7 +190,7 @@ cdef class DepthFirstTreeBuilder(TreeBuilder):
         cdef int init_capacity
 
         if tree.max_depth <= 10:
-            init_capacity = <int>((2 ** (tree.max_depth + 1)) - 1)
+            init_capacity = (2 ** (tree.max_depth + 1)) - 1
         else:
             init_capacity = 2047
 
@@ -500,18 +499,14 @@ cdef class Tree:
         if self._resize_c(self.capacity) != 0:
             raise MemoryError("resizing tree to %d" % self.capacity)
     
-        memcpy(self.nodes, cnp.PyArray_DATA(node_ndarray),
-               self.capacity * sizeof(Node))
-        memcpy(self.value, cnp.PyArray_DATA(value_ndarray),
-               self.capacity * self.value_stride * sizeof(double))
 
-        # nodes = memcpy(self.nodes, (<np.ndarray> node_ndarray).data,
-        #                self.capacity * sizeof(Node))
+        nodes = memcpy(self.nodes, (<np.ndarray> node_ndarray).data,
+                       self.capacity * sizeof(Node))
 
         
 
-        # value = memcpy(self.value, (<np.ndarray> value_ndarray).data,
-        #                self.capacity * self.value_stride * sizeof(double))
+        value = memcpy(self.value, (<np.ndarray> value_ndarray).data,
+                       self.capacity * self.value_stride * sizeof(double))
 
     cdef int _resize(self, SIZE_t capacity) nogil except -1:
         """Resize all inner arrays to `capacity`, if `capacity` == -1, then
@@ -657,7 +652,7 @@ cdef class Tree:
 
         return node_id
 
-    cpdef cnp.ndarray predict(self, object X):
+    cpdef np.ndarray predict(self, object X):
         """Predict target for X."""
         out = self._get_value_ndarray().take(self.apply(X), axis=0,
                                              mode='clip')
@@ -665,7 +660,7 @@ cdef class Tree:
             out = out.reshape(X.shape[0], self.max_n_classes)
         return out
     
-    cpdef cnp.ndarray predict_vim(self, object X, object permuted_vars, int mcr_type):
+    cpdef np.ndarray predict_vim(self, object X, object permuted_vars, int mcr_type):
         """Predict target for X."""
         
         out = self._get_value_ndarray().take(self._apply_dense_surrogate(X,permuted_vars,mcr_type), axis=0,
@@ -674,7 +669,7 @@ cdef class Tree:
             out = out.reshape(X.shape[0], self.max_n_classes)
         return out
     
-    cpdef cnp.ndarray predict_vim_via_ordering(self, object X, object permuted_vars, object mcr_ordering_pre, object mcr_ordering_others, object mcr_ordering_post):
+    cpdef np.ndarray predict_vim_via_ordering(self, object X, object permuted_vars, object mcr_ordering_pre, object mcr_ordering_others, object mcr_ordering_post):
         """Predict target for X."""
         
         out = self._get_value_ndarray().take(self._apply_dense_surrogate_via_mcr_ordering(X,permuted_vars,mcr_ordering_pre,mcr_ordering_others,mcr_ordering_post), axis=0,
@@ -687,7 +682,7 @@ cdef class Tree:
 
         
 
-    cpdef cnp.ndarray apply(self, object X):
+    cpdef np.ndarray apply(self, object X):
         """Finds the terminal region (=leaf node) for each sample in X."""
         if issparse(X):
             return self._apply_sparse_csr(X)
@@ -743,7 +738,7 @@ cdef class Tree:
             self.print_tree_lvl(lvl+1, &self.nodes[node.right_child],col_names)
 
 
-    cdef inline cnp.ndarray _apply_dense(self, object X):
+    cdef inline np.ndarray _apply_dense(self, object X):
         """Finds the terminal region (=leaf node) for each sample in X."""
 
         # Check input
@@ -787,7 +782,7 @@ cdef class Tree:
 
         return out
 
-    cdef inline cnp.ndarray _apply_dense_surrogate_via_mcr_ordering_orig2(self, object X, object permuted_vars, object mcr_ordering_pre, object mcr_ordering_others, object mcr_ordering_post):
+    cdef inline np.ndarray _apply_dense_surrogate_via_mcr_ordering_orig2(self, object X, object permuted_vars, object mcr_ordering_pre, object mcr_ordering_others, object mcr_ordering_post):
         """Finds the terminal region (=leaf node) for each sample in X."""
 
         # Check input
@@ -949,7 +944,7 @@ cdef class Tree:
         return out
 
 
-    cdef inline cnp.ndarray _apply_dense_surrogate_via_mcr_ordering(self, object X, object permuted_vars, object mcr_ordering_pre, object mcr_ordering_others, object mcr_ordering_post):
+    cdef inline np.ndarray _apply_dense_surrogate_via_mcr_ordering(self, object X, object permuted_vars, object mcr_ordering_pre, object mcr_ordering_others, object mcr_ordering_post):
         """Finds the terminal region (=leaf node) for each sample in X."""
 
         # Check input
@@ -1171,7 +1166,7 @@ cdef class Tree:
 
         return out
 
-    cdef inline cnp.ndarray _apply_dense_surrogate(self, object X, object permuted_vars, int mcr_type):
+    cdef inline np.ndarray _apply_dense_surrogate(self, object X, object permuted_vars, int mcr_type):
 
         raise Exception('This method should not be used currently')
         """Finds the terminal region (=leaf node) for each sample in X."""
@@ -1475,7 +1470,7 @@ cdef class Tree:
 
 
 
-    cdef inline cnp.ndarray _apply_sparse_csr(self, object X):
+    cdef inline np.ndarray _apply_sparse_csr(self, object X):
         """Finds the terminal region (=leaf node) for each sample in sparse X.
         """
         # Check input
@@ -1716,7 +1711,7 @@ cdef class Tree:
 
         cdef double normalizer = 0.
 
-        cdef cnp.ndarray[double, ndim=1] importances
+        cdef np.ndarray[np.float64_t, ndim=1] importances
         importances = np.zeros((self.n_features,))
         cdef DOUBLE_t* importance_data = <DOUBLE_t*>importances.data
 
@@ -1744,82 +1739,45 @@ cdef class Tree:
 
         return importances
 
-    # cdef np.ndarray _get_value_ndarray(self):
-    #     """Wraps value as a 3-d NumPy array.
-
-    #     The array keeps a reference to this Tree, which manages the underlying
-    #     memory.
-    #     """
-    #     cdef np.npy_intp shape[3]
-    #     shape[0] = <np.npy_intp> self.node_count
-    #     shape[1] = <np.npy_intp> self.n_outputs
-    #     shape[2] = <np.npy_intp> self.max_n_classes
-    #     cdef np.ndarray arr
-    #     arr = np.PyArray_SimpleNewFromData(3, shape, np.NPY_DOUBLE, self.value)
-    #     Py_INCREF(self)
-    #     arr.base = <PyObject*> self
-    #     return arr
-    cdef cnp.ndarray _get_value_ndarray(self):
+    cdef np.ndarray _get_value_ndarray(self):
         """Wraps value as a 3-d NumPy array.
 
         The array keeps a reference to this Tree, which manages the underlying
         memory.
         """
-        cdef cnp.npy_intp shape[3]
-        shape[0] = <cnp.npy_intp> self.node_count
-        shape[1] = <cnp.npy_intp> self.n_outputs
-        shape[2] = <cnp.npy_intp> self.max_n_classes
-        cdef cnp.ndarray arr
-        arr = cnp.PyArray_SimpleNewFromData(3, shape, cnp.NPY_DOUBLE, self.value)
+        cdef np.npy_intp shape[3]
+        shape[0] = <np.npy_intp> self.node_count
+        shape[1] = <np.npy_intp> self.n_outputs
+        shape[2] = <np.npy_intp> self.max_n_classes
+        cdef np.ndarray arr
+        arr = np.PyArray_SimpleNewFromData(3, shape, np.NPY_DOUBLE, self.value)
         Py_INCREF(self)
-        if PyArray_SetBaseObject(arr, <PyObject*> self) < 0:
-            raise ValueError("Can't initialize array.")
+        arr.base = <PyObject*> self
         return arr
 
-    # cpdef np.ndarray _get_node_ndarray(self):
-    #     """Wraps nodes as a NumPy struct array.
-
-    #     The array keeps a reference to this Tree, which manages the underlying
-    #     memory. Individual fields are publicly accessible as properties of the
-    #     Tree.
-    #     """
-    #     cdef np.npy_intp shape[1]
-    #     shape[0] = <np.npy_intp> self.node_count
-    #     cdef np.npy_intp strides[1]
-    #     strides[0] = sizeof(Node)
-    #     cdef np.ndarray arr
-    #     Py_INCREF(NODE_DTYPE)
-    #     arr = PyArray_NewFromDescr(<PyTypeObject *> np.ndarray, # subtype
-    #                                <np.dtype> NODE_DTYPE, # descr
-    #                                1, #nd
-    #                                shape, #dims
-    #                                strides, #strides
-    #                                <void*> self.nodes, #data
-    #                                np.NPY_DEFAULT,  #flags
-    #                                None )# obj
-    #     Py_INCREF(self)
-    #     arr.base = <PyObject*> self
-    #     return arr
-    cdef cnp.ndarray _get_node_ndarray(self):
+    cpdef np.ndarray _get_node_ndarray(self):
         """Wraps nodes as a NumPy struct array.
 
         The array keeps a reference to this Tree, which manages the underlying
         memory. Individual fields are publicly accessible as properties of the
         Tree.
         """
-        cdef cnp.npy_intp shape[1]
-        shape[0] = <cnp.npy_intp> self.node_count
-        cdef cnp.npy_intp strides[1]
+        cdef np.npy_intp shape[1]
+        shape[0] = <np.npy_intp> self.node_count
+        cdef np.npy_intp strides[1]
         strides[0] = sizeof(Node)
-        cdef cnp.ndarray arr
+        cdef np.ndarray arr
         Py_INCREF(NODE_DTYPE)
-        arr = PyArray_NewFromDescr(<PyTypeObject *> cnp.ndarray,
-                                   <cnp.dtype> NODE_DTYPE, 1, shape,
-                                   strides, <void*> self.nodes,
-                                   cnp.NPY_ARRAY_DEFAULT, None)
+        arr = PyArray_NewFromDescr(<PyTypeObject *> np.ndarray, # subtype
+                                   <np.dtype> NODE_DTYPE, # descr
+                                   1, #nd
+                                   shape, #dims
+                                   strides, #strides
+                                   <void*> self.nodes, #data
+                                   np.NPY_DEFAULT,  #flags
+                                   None )# obj
         Py_INCREF(self)
-        if PyArray_SetBaseObject(arr, <PyObject*> self) < 0:
-            raise ValueError("Can't initialize array.")
+        arr.base = <PyObject*> self
         return arr
 
     def compute_partial_dependence(self, DTYPE_t[:, ::1] X,

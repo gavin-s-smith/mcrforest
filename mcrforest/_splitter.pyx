@@ -705,11 +705,11 @@ cdef class BestSplitter(BaseDenseSplitter):
                             tmp_b.append(Xf_best_order[j])
                             offsetpy += 1
                             
-                        
-                        if found_phase2 == (best.pos-start) and abs(Xf[(end-(best.pos-start))-1] - Xf[(end-(best.pos-start))]) > FEATURE_THRESHOLD:
-                            print('[ACCEPT] STAGE II: Sur: {}, Best: {}'.format(tmp_s,tmp_b))
-                        else:
-                            print('[REJECT] STAGE II: Sur: {}, Best: {}'.format(tmp_s,tmp_b))
+                        with gil:
+                            if found_phase2 == (best.pos-start) and abs(Xf[(end-(best.pos-start))-1] - Xf[(end-(best.pos-start))]) > FEATURE_THRESHOLD:
+                                print('[ACCEPT] STAGE II: Sur: {}, Best: {}'.format(tmp_s,tmp_b))
+                            else:
+                                print('[REJECT] STAGE II: Sur: {}, Best: {}'.format(tmp_s,tmp_b))
 
                 # Here we compute the agreement. The data we have is for the left node. We infer for the right as we have binary splits.
                 # total_instances = end - start
@@ -1326,13 +1326,9 @@ cdef class BaseSparseSplitter(Splitter):
                                          end_negative, start_positive)
 
 
-cdef int compare_SIZE_t(const void* a, const void* b) noexcept nogil:
-    """Comparison function for sort.
-
-    This must return an `int` as it is used by stdlib's qsort, which expects
-    an `int` return value.
-    """
-    return <int>((<Py_ssize_t*>a)[0] - (<Py_ssize_t*>b)[0])
+cdef int compare_SIZE_t(const void* a, const void* b) nogil:
+    """Comparison function for sort."""
+    return <int>((<SIZE_t*>a)[0] - (<SIZE_t*>b)[0])
 
 
 cdef inline void binary_search(INT32_t* sorted_array,
