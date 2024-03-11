@@ -13,7 +13,7 @@
 # See _tree.pyx for details.
 
 import numpy as np
-cimport numpy as np
+cimport numpy as cnp
 
 
 
