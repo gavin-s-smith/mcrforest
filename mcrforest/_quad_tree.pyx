@@ -569,10 +569,21 @@ cdef class _QuadTree:
         strides[0] = sizeof(Cell)
         cdef cnp.ndarray arr
         Py_INCREF(CELL_DTYPE)
-        arr = PyArray_NewFromDescr(<PyTypeObject *> np.ndarray,
-                                   CELL_DTYPE, 1, shape,
-                                   strides, <void*> self.cells,
-                                   flags=cnp.NPY_ARRAY_DEFAULT, obj=None)
+        # arr = PyArray_NewFromDescr(<PyTypeObject *> np.ndarray,
+        #                            CELL_DTYPE, 1, shape,
+        #                            strides, <void*> self.cells,
+        #                            flags=cnp.NPY_ARRAY_DEFAULT, obj=None)
+
+        arr = PyArray_NewFromDescr(
+            subtype=<PyTypeObject *> np.ndarray,
+            descr=CELL_DTYPE,
+            nd=1,
+            dims=shape,
+            strides=strides,
+            data=<void*> self.cells,
+            flags=cnp.NPY_ARRAY_DEFAULT,
+            obj=None,
+        )
         Py_INCREF(self)
         #arr.base = <PyObject*> self
         # Py_INCREF(self)
