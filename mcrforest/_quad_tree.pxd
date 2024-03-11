@@ -98,4 +98,4 @@ cdef class _QuadTree:
     cdef int _resize(self, SIZE_t capacity) nogil except -1
     cdef int _resize_c(self, SIZE_t capacity=*) nogil except -1
     cdef int _get_cell(self, DTYPE_t[3] point, SIZE_t cell_id=*) nogil except -1
-    cdef np.ndarray _get_cell_ndarray(self)
+    cdef Cell[:] _get_cell_ndarray(self)
