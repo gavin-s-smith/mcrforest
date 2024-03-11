@@ -18,10 +18,11 @@ from sklearn.utils import check_array
 
 import numpy as np
 cimport numpy as cnp
-np.import_array()
+cnp.import_array()
 
 cdef extern from "math.h":
     double fabs(double x) nogil
+
 
 cdef extern from "numpy/arrayobject.h":
     object PyArray_NewFromDescr(PyTypeObject* subtype, cnp.dtype descr,
@@ -29,7 +30,6 @@ cdef extern from "numpy/arrayobject.h":
                                 cnp.npy_intp* strides,
                                 void* data, int flags, object obj)
     int PyArray_SetBaseObject(cnp.ndarray arr, PyObject* obj)
-
 
 # Repeat struct definition for numpy
 CELL_DTYPE = np.dtype({
@@ -549,14 +549,14 @@ cdef class _QuadTree:
         if self._resize_c(self.capacity) != 0:
             raise MemoryError("resizing tree to %d" % self.capacity)
 
-        cells = memcpy(self.cells, (<cnp.ndarray> cell_ndarray).data,
+        cells = memcpy(self.cells, (<np.ndarray> cell_ndarray).data,
                        self.capacity * sizeof(Cell))
 
 
     # Array manipulation methods, to convert it to numpy or to resize
     # self.cells array
 
-    cdef cnp.ndarray _get_cell_ndarray(self):
+    cdef np.ndarray _get_cell_ndarray(self):
         """Wraps nodes as a NumPy struct array.
 
         The array keeps a reference to this Tree, which manages the underlying
@@ -567,7 +567,7 @@ cdef class _QuadTree:
         shape[0] = <cnp.npy_intp> self.cell_count
         cdef cnp.npy_intp strides[1]
         strides[0] = sizeof(Cell)
-        cdef cnp.ndarray arr
+        cdef Cell[:] arr
         Py_INCREF(CELL_DTYPE)
         # arr = PyArray_NewFromDescr(<PyTypeObject *> np.ndarray,
         #                            CELL_DTYPE, 1, shape,
