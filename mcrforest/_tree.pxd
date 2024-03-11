@@ -75,23 +75,23 @@ cdef class Tree:
     cdef int _resize(self, SIZE_t capacity) nogil except -1
     cdef int _resize_c(self, SIZE_t capacity=*) nogil except -1
 
-    cdef np.ndarray _get_value_ndarray(self)
-    cpdef np.ndarray _get_node_ndarray(self)
+    cdef cnp.ndarray _get_value_ndarray(self)
+    cpdef cnp.ndarray _get_node_ndarray(self)
 
-    cpdef np.ndarray predict(self, object X)
-    cpdef np.ndarray predict_vim(self, object X, object permuted_vars, int mcr_type)
-    cpdef np.ndarray predict_vim_via_ordering(self, object X, object permuted_vars, object mcr_ordering_pre, object mcr_ordering_others, object mcr_ordering_post)
+    cpdef cnp.ndarray predict(self, object X)
+    cpdef cnp.ndarray predict_vim(self, object X, object permuted_vars, int mcr_type)
+    cpdef cnp.ndarray predict_vim_via_ordering(self, object X, object permuted_vars, object mcr_ordering_pre, object mcr_ordering_others, object mcr_ordering_post)
 
 
     cpdef void print_tree(self, object col_names)
     cdef void print_tree_lvl(self, int lvl,  Node* node, object col_names)
 
-    cpdef np.ndarray apply(self, object X)
-    cdef np.ndarray _apply_dense(self, object X)
-    cdef np.ndarray _apply_dense_surrogate(self, object X, object permuted_vars, int mcr_type)
-    cdef np.ndarray _apply_dense_surrogate_via_mcr_ordering(self, object X, object permuted_vars, object mcr_ordering_pre, object mcr_ordering_others, object mcr_ordering_post)
-    cdef np.ndarray _apply_dense_surrogate_via_mcr_ordering_orig2(self, object X, object permuted_vars, object mcr_ordering_pre, object mcr_ordering_others, object mcr_ordering_post)
-    cdef np.ndarray _apply_sparse_csr(self, object X)
+    cpdef cnp.ndarray apply(self, object X)
+    cdef cnp.ndarray _apply_dense(self, object X)
+    cdef cnp.ndarray _apply_dense_surrogate(self, object X, object permuted_vars, int mcr_type)
+    cdef cnp.ndarray _apply_dense_surrogate_via_mcr_ordering(self, object X, object permuted_vars, object mcr_ordering_pre, object mcr_ordering_others, object mcr_ordering_post)
+    cdef cnp.ndarray _apply_dense_surrogate_via_mcr_ordering_orig2(self, object X, object permuted_vars, object mcr_ordering_pre, object mcr_ordering_others, object mcr_ordering_post)
+    cdef cnp.ndarray _apply_sparse_csr(self, object X)
 
     cpdef object decision_path(self, object X)
     cdef object _decision_path_dense(self, object X)
