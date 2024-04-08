@@ -18,6 +18,7 @@ Install for use via pip:
 
 **NOTE:** Currently you MUST use `cython<3`. I.e. run `pip install cython<3` to either install or downgrade before pip installing mcrforest.
 
+**NOTE:** If you get a `ValueError: Multi-dimensional indexing is not longer supported` error when plotting you may need to downgrade matplotlib to v3.6.0. 
 ```
 pip install git+https://github.com/gavin-s-smith/mcrforest
 ```
