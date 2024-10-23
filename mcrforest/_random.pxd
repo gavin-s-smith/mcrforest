@@ -15,8 +15,16 @@ cdef enum:
     # particularly tiny on Windows/MSVC.
     RAND_R_MAX = 0x7FFFFFFF
 
-cpdef sample_without_replacement(np.int_t n_population,
-                                 np.int_t n_samples,
+# Compatibility type to always accept the default int type used by NumPy, both
+# before and after NumPy 2. On Windows, `long` does not always match `inp_t`.
+# See the comments in the `sample_without_replacement` Python function for more
+# details.
+ctypedef fused default_int:
+    intp_t
+    long
+    
+cpdef sample_without_replacement(default_int n_population,
+                                 default_int n_samples,
                                  method=*,
                                  random_state=*)
 
