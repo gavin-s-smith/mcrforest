@@ -15,10 +15,14 @@ from sklearn.base import clone
 from sklearn.base import is_classifier, is_regressor
 from sklearn.base import BaseEstimator
 from sklearn.base import MetaEstimatorMixin
-from sklearn.utils import Bunch, _print_elapsed_time
+from sklearn.utils import Bunch
 from sklearn.utils import check_random_state
 from sklearn.utils.metaestimators import _BaseComposition
 
+try:
+    from sklearn.utils import _print_elapsed_time
+except ImportError:
+    from sklearn.utils._user_interface import _print_elapsed_time
 
 def _fit_single_estimator(estimator, X, y, sample_weight=None,
                           message_clsname=None, message=None):
