@@ -20,6 +20,14 @@ import numbers
 cimport numpy as np
 np.import_array()
 
+# Compatibility type to always accept the default int type used by NumPy, both
+# before and after NumPy 2. On Windows, `long` does not always match `inp_t`.
+# See the comments in the `sample_without_replacement` Python function for more
+# details.
+ctypedef fused default_int:
+    intp_t
+    long
+
 def check_random_state(seed):
     """Turn seed into a np.random.RandomState instance
 
@@ -43,8 +51,8 @@ def check_random_state(seed):
 cdef UINT32_t DEFAULT_SEED = 1
 
 
-cpdef _sample_without_replacement_check_input(np.int_t n_population,
-                                              np.int_t n_samples):
+cpdef _sample_without_replacement_check_input(default_int n_population,
+                                              default_int n_samples):
     """ Check that input are consistent for sample_without_replacement"""
     if n_population < 0:
         raise ValueError('n_population should be greater than 0, got %s.'
@@ -57,8 +65,8 @@ cpdef _sample_without_replacement_check_input(np.int_t n_population,
 
 
 cpdef _sample_without_replacement_with_tracking_selection(
-        np.int_t n_population,
-        np.int_t n_samples,
+        default_int n_population,
+        default_int n_samples,
         random_state=None):
     r"""Sample integers without replacement.
 
@@ -100,9 +108,9 @@ cpdef _sample_without_replacement_with_tracking_selection(
     """
     _sample_without_replacement_check_input(n_population, n_samples)
 
-    cdef np.int_t i
-    cdef np.int_t j
-    cdef np.ndarray[np.int_t, ndim=1] out = np.empty((n_samples, ),
+    cdef default_int i
+    cdef default_int j
+    cdef np.ndarray[default_int, ndim=1] out = np.empty((n_samples, ),
                                                      dtype=np.int)
 
     rng = check_random_state(random_state)
@@ -122,8 +130,8 @@ cpdef _sample_without_replacement_with_tracking_selection(
     return out
 
 
-cpdef _sample_without_replacement_with_pool(np.int_t n_population,
-                                            np.int_t n_samples,
+cpdef _sample_without_replacement_with_pool(default_int n_population,
+                                            default_int n_samples,
                                             random_state=None):
     """Sample integers without replacement.
 
@@ -156,12 +164,12 @@ cpdef _sample_without_replacement_with_pool(np.int_t n_population,
     """
     _sample_without_replacement_check_input(n_population, n_samples)
 
-    cdef np.int_t i
-    cdef np.int_t j
-    cdef np.ndarray[np.int_t, ndim=1] out = np.empty((n_samples, ),
+    cdef default_int i
+    cdef default_int j
+    cdef np.ndarray[default_int, ndim=1] out = np.empty((n_samples, ),
                                                      dtype=np.int)
 
-    cdef np.ndarray[np.int_t, ndim=1] pool = np.empty((n_population, ),
+    cdef np.ndarray[default_int, ndim=1] pool = np.empty((n_population, ),
                                                       dtype=np.int)
 
     rng = check_random_state(random_state)
@@ -183,8 +191,8 @@ cpdef _sample_without_replacement_with_pool(np.int_t n_population,
 
 
 cpdef _sample_without_replacement_with_reservoir_sampling(
-    np.int_t n_population,
-    np.int_t n_samples,
+    default_int n_population,
+    default_int n_samples,
     random_state=None):
     """Sample integers without replacement.
 
@@ -219,9 +227,9 @@ cpdef _sample_without_replacement_with_reservoir_sampling(
     """
     _sample_without_replacement_check_input(n_population, n_samples)
 
-    cdef np.int_t i
-    cdef np.int_t j
-    cdef np.ndarray[np.int_t, ndim=1] out = np.empty((n_samples, ),
+    cdef default_int i
+    cdef default_int j
+    cdef np.ndarray[default_int, ndim=1] out = np.empty((n_samples, ),
                                                      dtype=np.int)
 
     rng = check_random_state(random_state)
@@ -242,8 +250,8 @@ cpdef _sample_without_replacement_with_reservoir_sampling(
     return out
 
 
-cpdef sample_without_replacement(np.int_t n_population,
-                                 np.int_t n_samples,
+cpdef sample_without_replacement(default_int n_population,
+                                 default_int n_samples,
                                  method="auto",
                                  random_state=None):
     """Sample integers without replacement.
