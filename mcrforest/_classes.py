@@ -51,7 +51,7 @@ from ._tree import Tree
 # from ._tree import ccp_pruning_path
 from . import _tree, _splitter, _criterion
 
-if int(numpy.__version__.split('.')[0]) <= 1 and int(numpy.__version__.split('.')[1]) < 24:
+if int(np.__version__.split('.')[0]) <= 1 and int(np.__version__.split('.')[1]) < 24:
     warnings.filterwarnings('error', category=np.VisibleDeprecationWarning)
            
 __all__ = ["DecisionTreeClassifier",
