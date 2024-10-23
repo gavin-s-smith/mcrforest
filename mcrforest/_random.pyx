@@ -20,21 +20,21 @@ import numbers
 cimport numpy as np
 np.import_array()
 
-# intp_t/np.intp should be used to index arrays in a platform dependent way.
-# Storing arrays with platform dependent dtypes as attribute on picklable
-# objects is not recommended as it requires special care when loading and
-# using such datastructures on a host with different bitness. Instead one
-# should rather use fixed width integer types such as int32 or uint32 when we know
-# that the number of elements to index is not larger to 2 or 4 billions.
-ctypedef Py_ssize_t intp_t
+# # intp_t/np.intp should be used to index arrays in a platform dependent way.
+# # Storing arrays with platform dependent dtypes as attribute on picklable
+# # objects is not recommended as it requires special care when loading and
+# # using such datastructures on a host with different bitness. Instead one
+# # should rather use fixed width integer types such as int32 or uint32 when we know
+# # that the number of elements to index is not larger to 2 or 4 billions.
+# ctypedef Py_ssize_t intp_t
 
-# Compatibility type to always accept the default int type used by NumPy, both
-# before and after NumPy 2. On Windows, `long` does not always match `inp_t`.
-# See the comments in the `sample_without_replacement` Python function for more
-# details.
-ctypedef fused default_int:
-    intp_t
-    long
+# # Compatibility type to always accept the default int type used by NumPy, both
+# # before and after NumPy 2. On Windows, `long` does not always match `inp_t`.
+# # See the comments in the `sample_without_replacement` Python function for more
+# # details.
+# ctypedef fused default_int:
+#     intp_t
+#     long
 
 def check_random_state(seed):
     """Turn seed into a np.random.RandomState instance
