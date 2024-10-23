@@ -51,7 +51,9 @@ from ._tree import Tree
 # from ._tree import ccp_pruning_path
 from . import _tree, _splitter, _criterion
 
-warnings.filterwarnings('error', category=np.VisibleDeprecationWarning)
+if Version(np.__version__) < Version("1.24.0"):
+    warnings.filterwarnings('error', category=np.VisibleDeprecationWarning)
+           
 __all__ = ["DecisionTreeClassifier",
            "DecisionTreeRegressor",
            "ExtraTreeClassifier",
