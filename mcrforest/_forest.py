@@ -439,11 +439,13 @@ class BaseForest(MultiOutputMixin, BaseEnsemble, metaclass=ABCMeta):
         
 
         import shap
-        from sklearn.ensemble import RandomForestClassifier as sklrf
+        
         import seaborn as sns
         if is_classifier(self):
+            from sklearn.ensemble import RandomForestClassifier as sklrf
             from sklearn.tree import DecisionTreeClassifier as skltree
         else:
+            from sklearn.ensemble import RandomForestRegressor as sklrf
             from sklearn.tree import DecisionTreeRegressor as skltree
 
         cmp_min = sns.dark_palette("#FF8A57FF", reverse=False, as_cmap=True)
