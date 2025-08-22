@@ -18,7 +18,7 @@ Install for use via pip:
 
 **NOTE:** Currently you MUST use `cython<3`. I.e. run `pip install cython<3` to either install or downgrade before pip installing mcrforest.
 
-**NOTE:** The tested version of Python was a clean install of 3.8.8 (using [pyenv](https://github.com/pyenv/pyenv)), with the following packages pip installed: `pip install numpy==1.22.4 Cython==0.29.35 pandas==1.3.5 matplotlib==3.5.1 scikit-learn==1.3.2 tqdm seaborn shap==0.39.0`
+**NOTE:** The tested version of Python was a clean install of 3.8.8 (using [pyenv](https://github.com/pyenv/pyenv)), with the following packages pip installed: `pip install numpy==1.22.4 Cython==0.29.35 pandas==1.3.5 matplotlib==3.6.0 scikit-learn==1.3.2 tqdm seaborn shap==0.39.0`
 
 **NOTE:** If you get a `ValueError: Multi-dimensional indexing is not longer supported` error when plotting you may need to ensure you have at least matplotlib v3.6.0. 
 ```
